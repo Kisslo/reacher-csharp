@@ -13,8 +13,6 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-          cache: true
-          cache-dependency-path: '**/packages.lock.json'
 
       # Hoppar över allt tills första solution-filen finns, så tomma repot är grönt.
       - id: sln
