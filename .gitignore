@@ -1,0 +1,31 @@
+*.db
+*.db-wal
+*.db-shm
+*.xlsx
+*.xls
+.env
+
+# .NET
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/
+*.trx
+.idea/
+
+/CLAUDE.md
+/.cursor/
+
+Variabelbeskrivning_scb.pdf
+
+/output/
+
+# Råa svar från SCB:s API (personuppgifter, T1-09)
+/scb_raw/
+
+/API_context.md
+
+# Råa svar från Bolagsverkets API (T1-14)
+/bolagsverket_raw/

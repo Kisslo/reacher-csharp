@@ -1,0 +1,34 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Om GitHub varnar att den här action-versionen är utdaterad,
+      # höj major-numret. Allt annat i steget är oförändrat.
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      # Hoppar över allt tills första solution-filen finns, så tomma repot är grönt.
+      - id: sln
+        run: echo "found=$(ls *.sln *.slnx 2>/dev/null | head -1)" >> "$GITHUB_OUTPUT"
+
+      # --locked-mode failar om någon ändrat paket utan att uppdatera packages.lock.json.
+      - if: steps.sln.outputs.found != ''
+        run: dotnet restore --locked-mode
+
+      - if: steps.sln.outputs.found != ''
+        run: dotnet format --verify-no-changes --no-restore
+
+      - if: steps.sln.outputs.found != ''
+        run: dotnet build --no-restore -c Release
+
+      - if: steps.sln.outputs.found != ''
+        run: dotnet test --no-build -c Release

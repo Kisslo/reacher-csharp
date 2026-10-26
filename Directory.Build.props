@@ -1,0 +1,13 @@
+<Project>
+  <!-- Gäller alla projekt i repot. Motsvarar ruff + uv.lock i Python-repot. -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <!-- packages.lock.json committas. CI kör restore i locked mode och failar
+         om någon ändrat paket utan att låsfilen följt med (som uv sync i låst läge). -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+</Project>
