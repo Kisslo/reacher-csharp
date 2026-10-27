@@ -1,12 +1,17 @@
 using Microsoft.EntityFrameworkCore;
+using Reacher.Api;
 using Reacher.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Fail at startup with the setting's name, never its value (hard rule 6).
-// J-03 replaces this with validated options.
-var connectionString = builder.Configuration.GetConnectionString("Default")
-    ?? throw new InvalidOperationException("Missing setting 'ConnectionStrings:Default'.");
+var connectionString = builder.Configuration.GetConnectionString("Default");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException("Missing setting 'ConnectionStrings:Default'.");
+}
+
+builder.Services.AddReacherOptions(builder.Configuration);
 
 builder.Services.AddDbContext<ReacherDbContext>(options => options.UseNpgsql(connectionString));
 
