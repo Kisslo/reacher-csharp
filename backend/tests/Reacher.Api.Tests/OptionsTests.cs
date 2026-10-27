@@ -48,6 +48,9 @@ public sealed class OptionsTests
         Assert.Equal("revenue", tag.Fact);
         Assert.Equal("49", Assert.Single(ingest.AllowedLegalForms));
         Assert.True(brave.UseFake);
+        Assert.Equal("https://api.search.brave.com/", brave.BaseAddress);
+        Assert.Equal(1500, brave.MonthlyCap);
+        Assert.Equal(1, brave.RequestsPerSecond);
         Assert.Equal(0.55, rework.PerformanceWeight);
     }
 

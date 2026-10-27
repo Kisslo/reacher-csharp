@@ -54,6 +54,11 @@ internal static class ReacherApiFactory
             {
                 settings["Brave:ApiKey"] = Sentinel;
             }
+
+            if (omitSetting == "Brave:ApiKey")
+            {
+                settings["Brave:UseFake"] = "false";
+            }
         }
 
         // UseSetting writes straight onto the configuration manager, so these values

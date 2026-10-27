@@ -339,6 +339,12 @@
           "EFCore.NamingConventions": "[10.0.1, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )"
         }
+      },
+      "reacher.websiteanalysis": {
+        "type": "Project",
+        "dependencies": {
+          "Reacher.Data": "[1.0.0, )"
+        }
       }
     }
   }
