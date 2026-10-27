@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Reacher.Api;
 using Reacher.Data;
-using Reacher.WebsiteAnalysis;
 using Reacher.Ingestion.Scb;
+using Reacher.WebsiteAnalysis;
 
 var builder = WebApplication.CreateBuilder(args);
 
