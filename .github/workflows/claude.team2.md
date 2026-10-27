@@ -1,74 +1,84 @@
-# Team 2: Scoring, output and feedback
+# Team 2: Search API and website
 
-Loaded together with the shared `claude.md`. That file holds the handoff formats, decisions and compliance rules, and it always wins over this one. You are talking to a member of Team 2.
+Loaded together with the shared `claude.md`. That file holds the hard rules, decisions and contracts, and it always wins over this one. You are talking to a member of Team 2.
 
 ## Our job in one sentence
-Take the callable salons, rank them, give each salesperson a locked Excel file, read the outcomes back in, and prove every Friday that the top 20 converts better than the rest.
+Serve the company list the way the user wants to see it, and for one company at a time find its website and judge whether it needs rework, without keeping anything Brave gives us; in week 47 build the website panel and analysis view.
 
 ## What we own
-| Area | Where |
-|---|---|
-| Scoring: signal registry, derived signals (`registered_recently`, `small_employer`, `loss_making`, `low_revenue`, `declining_revenue`), shadow mode | `scoring.yaml`, `src/reacher/config.py`, `src/reacher/scoring.py` |
-| Ranking, per-salesperson split, snapshot (incl. derived signals per row, T2-08) | `reacher build-lists`, tables `call_list` / `call_list_row` |
-| Excel contract, export and import (incl. Adress, Ort, Omsättning, Resultat, J-06) | `src/reacher/excel/`, `reacher import-outcomes`, table `outcome` |
-| Block list writes (`opt_out`, `existing_customer`) | table `suppression` |
-| Outcome simulation (dev only) | T2-05 |
-| Weekly report: top 20 vs the rest | `reacher report` |
+Folder paths are a suggestion until J-02 lands. Update the table if they change.
+
+| Area | Where | Ticket |
+|---|---|---|
+| Company search `GET /api/companies` | `backend/src/Reacher.Api/Endpoints/` + query in `Reacher.Data` | T2-01 |
+| Search and job endpoints | `backend/src/Reacher.Api/Endpoints/` | T2-02 |
+| Brave client, fake client, usage counter | `backend/src/Reacher.WebsiteAnalysis/Brave/` | T2-03 |
+| Website matching | `backend/src/Reacher.WebsiteAnalysis/Matching/` | T2-04 |
+| URL validation, PageSpeed, own checks, rework score | `backend/src/Reacher.WebsiteAnalysis/Analysis/` | T2-05 |
+| Website endpoints | `backend/src/Reacher.Api/Endpoints/` | T2-06 |
+| Matching evaluation | `docs/matching-evaluation.md` | T2-07 |
+| "Find website" panel | `frontend/src/features/website/` | T2-08 |
+| Analysis view, session score store, score column | `frontend/src/features/analysis/` | T2-09 |
 
 ## What we consume and what we hand over
-- **We consume (Format 1):** eligible `salon` rows through Team 1's `callable_salon` view, with phone details from the related `contact` row. Never select from `salon` directly when building lists, or exclusions get bypassed. `city` is the Excel "Ort" value (D19, D27). Financial facts come from `financial_fact` through Team 1's latest-financials view (T1-12), joined on orgnr.
-- **We deliver (Format 2):** `suppression` rows. "Spärra" → `opt_out`, "Registrerad" → `existing_customer` (D13).
-- **Until Team 1 delivers:** build against fixtures in exactly the Format 1 shape. `financials.csv` comes with T1-12.
+- **We consume:** Team 1's tables, read only. We never write `company`, `workplace`, `financial_fact` or `coverage`. Also their dev seed (T1-01) and `IIngestCoordinator` (T1-07).
+- **We hand over:** the API endpoints the frontend uses, and the action/score columns for Team 1's company table.
+- **We are waiting on Team 1 for:** T1-01 → T2-01 (start on your own fictional fixtures); T1-07 → T2-02 (start on the fake coordinator); T1-05 → T2-07; T1-10 → T2-09.
 
-## Working rules for Team 2
-- **"Spärra" means never again.** `opt_out` rows are never deleted, never rebuilt from Excel, and survive a later import that changes the same row's Utfall. This is a legal requirement (IMY), not a feature.
-- **Match imported rows on `row_id` only,** and validate `_meta` (`call_list_id`, `week`) so an old or wrong file is rejected.
-- **Unknown Utfall values are reported,** never dropped silently.
-- **`contract.py` is the single source for the Excel format.** Changing it is a joint change. Import rejects files whose headers don't match, so import every outstanding file before merging a contract change.
-- **No orgnr in any Excel file** (D12). **Adress is the workplace address only** (D19, D27): never a sole proprietor's home.
-- **Tuning lives in `scoring.yaml`,** never in code. Bump `version` when you change anything, since `call_list.scoring_version` records which config produced a list.
-- **Shadow before points (D26).** A new signal starts with `weight: 0`: derived and stored in `call_list_row`, not shown to the salesperson, no points. It gets points only after T2-07 shows it helps, logged as a decision.
-- **One registry entry + one yaml block per signal (D29).** Config fails to load if `scoring.yaml` names a signal without a derive function.
-- **Missing facts give no signal.** A salon without annual reports is neither loss-making nor profitable.
-- **Freeze what was sent.** `call_list_row` stores the score, reasons, derived signals and phone as they were. Later data changes must not rewrite history.
-- **The simulation (T2-05) must never touch a real list.** It refuses any file containing salons that aren't in the fixtures.
-- **Report honestly.** Always show the sample size next to a hit rate. With a handful of calls, differences are noise.
+## Working rules
+
+### Transient data (D7, D9, D10)
+- A Brave response lives in local variables for one HTTP request. Never in fields, statics, caches, the database, logs, files or exceptions.
+- Both website endpoints send `Cache-Control: no-store`. Request body logging stays off for them (if `HttpLogging` is used, exclude these routes).
+- The usage counter is incremented **before** the Brave call, atomically in the database (one `UPDATE … SET request_count = request_count + 1` or upsert), so two parallel clicks can't both slip past the cap.
+- Development and tests use `FakeBraveSearchClient` (`Brave:UseFake = true`). The real client is only for deliberate manual checks and T2-07 (≤ 150 requests). Tell the team before using more than a handful of real requests.
+- Every PR that touches Brave, matching or analysis includes this checklist in its description:
+  - [ ] Nothing from Brave, a pasted URL or an analysis is written to the database, logs, files or caches
+  - [ ] No URL in a query string or log message
+  - [ ] Tests use the fake client and recorded fixtures with made-up sites
+
+### SSRF (D10)
+- Allow only `http`/`https`, default ports, and no credentials in the URL.
+- Resolve DNS and reject loopback, private, link-local, CGNAT (`100.64.0.0/10`), `0.0.0.0/8`, `::1`, `fc00::/7`, `fe80::/10` and IPv4-mapped IPv6 versions of them.
+- Guard against DNS rebinding: check the address actually connected to, using `SocketsHttpHandler.ConnectCallback`, not only an earlier lookup.
+- Handle redirects yourself (`AllowAutoRedirect = false`), at most 5, re-validating every hop.
+- Cap the body (2 MB) and the time (10 s) for our own checks.
+- PageSpeed fetches the page from Google's servers, but validate before sending anyway. There is no point analysing `localhost`.
+
+### Company search (T2-01)
+- One EF query that translates to one SQL statement, with filtering, sorting and paging in the database. Check the generated SQL with EF logging.
+- "Latest fiscal year" = the newest `period_end` per company. Companies missing the sorted value always go last.
+- The filters are exactly those in `docs/contracts.md`. A new filter is a contract change (joint).
+
+### Scores (T2-05)
+- The rework formula and weights live in `ReworkScoreOptions`. The starting values are an *assumption*. A change that alters what the score means gets a line in `docs/decisions.md`.
+- Lighthouse scores vary between runs (a few points either way is normal). Show the score as a guide, not an exact value.
+
+## Frontend rules (week 47)
+- Candidates and analysis results live only in React state or context. Brave and analysis calls are mutations (`useMutation`), not cached queries. Nothing goes in `localStorage`, `sessionStorage`, the page URL or router state.
+- The session score store maps `orgnr → { reworkScore, analysedAt }`, without the URL.
+- External links use `target="_blank" rel="noopener noreferrer"`.
+- All user-facing strings in Swedish, in `frontend/src/texts/`. API error `code`s are translated in `src/texts/errors.ts`.
 
 ## Tickets
-| ID | Issue | Title | Week | Status |
-|---|---|---|---|---|
-| J-01 | [#7](https://github.com/Kisslo/reacher/issues/7) | Sign off handoff formats | 2 | Done |
-| J-02 | [#8](https://github.com/Kisslo/reacher/issues/8) | Remove Orgnr column from the Excel contract | 2 | Done |
-| T2-01 | [#15](https://github.com/Kisslo/reacher/issues/15) | Scoring from salon facts | 2 | Done |
-| T2-03 | [#16](https://github.com/Kisslo/reacher/issues/16) | Excel export per the contract | 3 | Done |
-| T2-02 | [#17](https://github.com/Kisslo/reacher/issues/17) | Rank, split per salesperson, freeze the snapshot | 3 | Done |
-| T2-04 | [#18](https://github.com/Kisslo/reacher/issues/18) | Import outcomes from returned xlsx | 4 | Done |
-| T2-05 | [#19](https://github.com/Kisslo/reacher/issues/19) | Simulated outcomes for demos | 4 | Done |
-| T2-06 | [#20](https://github.com/Kisslo/reacher/issues/20) | Report: top 20 vs the rest | 4 | Done |
-| J-03 | [#21](https://github.com/Kisslo/reacher/issues/21) | End-to-end demo script | 4 | Done |
-| J-05 | [#44](https://github.com/Kisslo/reacher/issues/44) | Update shared context for SCB new API and Bolagsverket | 3 | Done |
-| T2-08 | [#52](https://github.com/Kisslo/reacher/issues/52) | Signal registry, on/off switch and shadow mode | 4 | Done |
-| J-06 | [#45](https://github.com/Kisslo/reacher/issues/45) | Excel: add Adress, Ort, Omsättning, Resultat | 4 | Done |
-| T2-09 | [#53](https://github.com/Kisslo/reacher/issues/53) | Financial signals in shadow mode | 5 | Done |
-| J-04 | [#24](https://github.com/Kisslo/reacher/issues/24) | First real list to salespeople | 6 | Todo |
-| T2-07 | [#25](https://github.com/Kisslo/reacher/issues/25) | First tuning pass on signal weights (incl. shadow signals) | 7–8 | Todo |
+| ID | Issue | Title | Week | Blocked by | Status |
+|---|---|---|---|---|---|
+| T2-01 | [#13](https://github.com/Kisslo/reacher-csharp/issues/13) | [BE] Company search API | 45 | J-01, J-02 | Todo |
+| T2-03 | [#15](https://github.com/Kisslo/reacher-csharp/issues/15) | [BE] Brave client | 45 | J-02, J-03 | Todo |
+| T2-02 | [#14](https://github.com/Kisslo/reacher-csharp/issues/14) | [BE] Search and job endpoints | 46 | J-01, T1-07 (start on fake) | Todo |
+| T2-04 | [#16](https://github.com/Kisslo/reacher-csharp/issues/16) | [BE] Website matching | 46 | T2-03 | Todo |
+| T2-05 | [#17](https://github.com/Kisslo/reacher-csharp/issues/17) | [BE] Website analysis | 46 | J-02, J-03 | Todo |
+| T2-06 | [#18](https://github.com/Kisslo/reacher-csharp/issues/18) | [BE] Website endpoints | 46 | J-01, T2-04, T2-05 | Todo |
+| T2-07 | [#19](https://github.com/Kisslo/reacher-csharp/issues/19) | Measure matching accuracy | 46 | T2-04, T1-05 | Todo |
+| T2-08 | [#23](https://github.com/Kisslo/reacher-csharp/issues/23) | [FE] "Find website" panel | 47 | J-05, T2-06 | Todo |
+| T2-09 | [#24](https://github.com/Kisslo/reacher-csharp/issues/24) | [FE] Analysis view and score column | 47 | T2-08, T1-10 | Todo |
 
-The GitHub issues are the source of truth (labels `team-1`/`team-2`/`joint`, milestones per week). Keep the Status column roughly in sync at the end of each session.
+T2-05 doesn't depend on Brave, so it can start as soon as J-03 is merged, in parallel with T2-03.
 
 ## Team status
-*Session 2026-10-09*
-- **Done:** everything through J-06: scoring, ranking and snapshots, Excel export/import, block list, simulation, top-20 report, end-to-end demo, and the updated Excel contract with workplace address, town, revenue, and result.
-- **Done:** T2-09 (#53): financial signals in shadow mode. `loss_making` and `low_revenue` at weight 0, `declining_revenue` registered with `enabled: false`. `build_call_lists` reads `latest_financial_fact` once for both the signals and the Omsättning/Resultat cells.
-- **In progress:** none.
-- **Next up:** J-04 first real list, then T2-07 tuning.
+*2026-10-27:* nothing started yet. J-01 is merged. T2-01 can start after J-02 on our own fixtures; T2-03 and T2-05 after J-03.
 
 ## Team 2 open questions
-- ~~How is "reached" defined in the report?~~ Resolved as D23.
-- ~~Where does the 24-month threshold live?~~ Resolved (T2-01, T2-08): `months` in the `registered_recently` block of `scoring.yaml`.
-- Rows are split fairly and deterministically by alternating global rank (T2-02 implementation default).
-- **`anstKl` scale** (from T1-09): if the new API uses the SME scale, `classes: ["2"]` in the `small_employer` block is wrong.
-- **`low_revenue` threshold:** `below_sek: 500000` is an assumption (weight 0, so it can't affect lists yet). Alternatively SCB's Omsättning size class, if the API exposes it.
-- **Old annual reports (T2-09 → T2-07):** the financial signals use the company's newest report however old it is, so a 2019 loss still counts. Proposal: no age limit while the weight is 0; decide in T2-07 once real data shows how old the reports are. *Assumption.*
-- **`loss_making` on real data (T1-13 → T1-14):** `se-gen-base:AretsResultat` is not yet verified on a real report. If the tag is wrong, real companies get no `net_result` rows and `loss_making` never fires. Check its hit count before T2-07 reads anything into it.
-- **`declining_revenue`:** registered with `enabled: false`. Needs `years` (3) fiscal years in a row, 12 months apart, all with revenue, falling every year. Switch on once real data shows enough companies with three comparable years.
-- ~~**Excel financials:** which years?~~ Resolved as D27: all available years up to 3, one line per year in the Omsättning and Resultat cells. Final format signed off in J-06.
+- **Brave plan:** confirm the limits when the key is set up and set `Brave:MonthlyCap` below them.
+- **PageSpeed quota:** confirm the key's daily quota in Google Cloud Console.
+- **Score sorting scope (T2-09):** the ticket sorts analysed companies on the current page only. Is that enough, or should it cover every company analysed this session?
