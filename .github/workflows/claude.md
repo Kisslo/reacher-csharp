@@ -152,6 +152,7 @@ The team file wins for team-internal matters only. It never overrides the hard r
 | J-04 | [#4](https://github.com/Kisslo/reacher-csharp/issues/4) | Rewrite the claude.md files | 44 | J-01 | In progress |
 | J-05 | [#20](https://github.com/Kisslo/reacher-csharp/issues/20) | [FE] Frontend skeleton | 46 | J-01, J-02 | Todo |
 | J-06 | [#25](https://github.com/Kisslo/reacher-csharp/issues/25) | End-to-end test, demo and README | 48 | all | Todo |
+| J-07 | [#34](https://github.com/Kisslo/reacher-csharp/issues/34) | [BE] Fix flaky startup-validation test | 44 | – | In progress |
 
 ## Plan
 | Week | Dates | Goal | Works at the end of the week |
