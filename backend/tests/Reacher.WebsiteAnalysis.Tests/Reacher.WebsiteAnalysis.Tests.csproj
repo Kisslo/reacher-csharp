@@ -22,4 +22,10 @@
     <ProjectReference Include="..\..\src\Reacher.WebsiteAnalysis\Reacher.WebsiteAnalysis.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Fixtures\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

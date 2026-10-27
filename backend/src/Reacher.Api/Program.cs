@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Reacher.Api;
 using Reacher.Data;
+using Reacher.WebsiteAnalysis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +13,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 }
 
 builder.Services.AddReacherOptions(builder.Configuration);
+builder.Services.AddWebsiteAnalysis();
 
 builder.Services.AddDbContext<ReacherDbContext>(options => options.UseNpgsql(connectionString));
 
