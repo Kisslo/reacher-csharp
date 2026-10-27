@@ -1,32 +1,32 @@
 name: ci
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 
 jobs:
-  test:
+  backend:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
-      # Om GitHub varnar att den här action-versionen är utdaterad,
-      # höj major-numret. Allt annat i steget är oförändrat.
+      # If GitHub warns that an action version is outdated, bump the major number.
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+          cache: true
+          cache-dependency-path: backend/**/packages.lock.json
 
-      # Hoppar över allt tills första solution-filen finns, så tomma repot är grönt.
-      - id: sln
-        run: echo "found=$(ls *.sln *.slnx 2>/dev/null | head -1)" >> "$GITHUB_OUTPUT"
+      # Fails if someone changed a package without committing packages.lock.json.
+      - run: dotnet restore --locked-mode
 
-      # --locked-mode failar om någon ändrat paket utan att uppdatera packages.lock.json.
-      - if: steps.sln.outputs.found != ''
-        run: dotnet restore --locked-mode
+      - run: dotnet format --verify-no-changes --no-restore
 
-      - if: steps.sln.outputs.found != ''
-        run: dotnet format --verify-no-changes --no-restore
+      - run: dotnet build --no-restore -c Release
 
-      - if: steps.sln.outputs.found != ''
-        run: dotnet build --no-restore -c Release
-
-      - if: steps.sln.outputs.found != ''
-        run: dotnet test --no-build -c Release
+      # Testcontainers needs Docker, which ubuntu-latest has preinstalled.
+      - run: dotnet test --no-build -c Release
