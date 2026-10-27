@@ -1,0 +1,45 @@
+{
+  "peOrgNr": "165599001236",
+  "orgNr": "5599001236",
+  "namn": "Påhittade Saxen AB",
+  "postAdress": {
+    "gatuAdress": "Box 9901",
+    "coAdress": "",
+    "postNr": "11800",
+    "postOrt": "STOCKHOLM"
+  },
+  "kommunSate": "0180",
+  "lanSate": "01",
+  "aeAnt": 2,
+  "anstKl": "3",
+  "ftgStat": "1",
+  "jurform": "49",
+  "reklamSparrTyp": 1,
+  "telefonSparrTyp": 1,
+  "epostSparrTyp": 1,
+  "startDat": "2019-03-31T22:00:00.000Z",
+  "slutDat": null,
+  "regDat": "2019-03-20T15:16:00.000Z",
+  "expImp": "0",
+  "tel": "",
+  "epost": "",
+  "omsAr": 2024,
+  "omsKl": "3",
+  "agKat": "41",
+  "foretagsnamn": "Påhittade Saxen AB",
+  "foretagsnamnAnt": 1,
+  "arbGivStat": "1",
+  "momsStat": "1",
+  "fSkattStat": "1",
+  "bolStat": "0",
+  "privPubl": "0",
+  "sektor": "11000",
+  "naringsgrenar": [
+    {
+      "rangordning": 1,
+      "naringsgren": "96210",
+      "andelProcent": 100,
+      "avdelningsKod": "T"
+    }
+  ]
+}
