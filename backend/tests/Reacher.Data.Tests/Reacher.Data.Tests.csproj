@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.16.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>
@@ -20,6 +21,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Reacher.Data\Reacher.Data.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Copied next to the test DLL so DevSeedTests can load the real seed file. -->
+    <None Include="..\..\src\Reacher.Data\Seed\dev-seed.sql" Link="dev-seed.sql"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Reacher.Api;
 using Reacher.Data;
 using Reacher.WebsiteAnalysis;
+using Reacher.Ingestion.Scb;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,8 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddReacherOptions(builder.Configuration);
 builder.Services.AddWebsiteAnalysis();
 
+builder.Services.AddScbClient();
+
 builder.Services.AddDbContext<ReacherDbContext>(options => options.UseNpgsql(connectionString));
 
 builder.Services.AddHealthChecks()
@@ -23,6 +26,15 @@ builder.Services.AddHealthChecks()
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// Development only. Tests turn it off so they can start the API without a database.
+if (app.Environment.IsDevelopment()
+    && app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<ReacherDbContext>();
+    await db.Database.MigrateAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {

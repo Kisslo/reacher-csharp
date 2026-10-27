@@ -13,7 +13,7 @@ Decisions and contracts live in [docs/](docs/).
    ```
    docker compose up -d
    ```
-2. Run the API:
+2. Run the API. In Development it applies the database migrations at startup.
    ```
    dotnet run --project backend/src/Reacher.Api
    ```
@@ -26,6 +26,31 @@ Stop Postgres with `docker compose down` (data is kept) or `docker compose down 
 
 If port 5432 is taken, you probably have a local Postgres installed. Stop it, or change
 the port in both `docker-compose.yml` and `appsettings.Development.json`.
+
+## Database
+The schema is in EF Core migrations in `backend/src/Reacher.Data/Migrations`.
+In Development the API applies them at startup (`Database:MigrateOnStartup`).
+To apply them without the API, or to add one, use the repo's pinned `dotnet ef`
+(run `dotnet tool restore` once):
+
+```
+dotnet ef database update --project backend/src/Reacher.Data
+dotnet ef migrations add <Name> --project backend/src/Reacher.Data
+```
+
+Both use the local Compose database, or `ConnectionStrings__Default` if it is set.
+
+### Dev seed
+30 fictional companies in Stockholm, Solna and Göteborg (SNI 96210 and 96220), some with
+annual-report figures. It replaces every company and all coverage, so never run it against
+a real ingest. Apply the migrations first, then:
+
+```
+docker compose exec postgres psql -U reacher -d reacher -v ON_ERROR_STOP=1 -f /seed/dev-seed.sql
+```
+
+If Postgres was started before the seed folder was mounted, run `docker compose up -d`
+once to recreate the container. The data is kept.
 
 ## Configuration
 Non-secret defaults live in `backend/src/Reacher.Api/appsettings.json`. Secrets are never
@@ -41,6 +66,7 @@ A missing required setting stops startup with the setting's name, never its valu
   and `UseFake` (true in Development). API key via user-secrets.
 - `PageSpeed`: strategy (`mobile`) and timeout (90 seconds). API key via user-secrets.
 - `ReworkScore`: weights and penalties. Starting assumption for the rework score.
+- `Database:MigrateOnStartup`: apply migrations when the API starts. False by default, true in `appsettings.Development.json`.
 - `ConnectionStrings:Default`: the Compose Postgres connection string, in `appsettings.Development.json`.
 
 Set the secrets from the repo root. Type the values locally. Do not commit them.
