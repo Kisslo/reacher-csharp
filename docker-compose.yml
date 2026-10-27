@@ -1,0 +1,24 @@
+# Local Postgres for development. The API runs on the host with `dotnet run` for now.
+name: reacher
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: reacher
+      POSTGRES_USER: reacher
+      # Local-only dev password, same as appsettings.Development.json. Not a secret:
+      # the port is bound to 127.0.0.1, so nothing outside this machine can reach it.
+      POSTGRES_PASSWORD: reacher
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reacher -d reacher"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

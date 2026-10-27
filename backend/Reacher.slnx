@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Reacher.Api/Reacher.Api.csproj" />
+    <Project Path="src/Reacher.Data/Reacher.Data.csproj" />
+    <Project Path="src/Reacher.Ingestion/Reacher.Ingestion.csproj" />
+    <Project Path="src/Reacher.WebsiteAnalysis/Reacher.WebsiteAnalysis.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Reacher.Api.Tests/Reacher.Api.Tests.csproj" />
+    <Project Path="tests/Reacher.Data.Tests/Reacher.Data.Tests.csproj" />
+    <Project Path="tests/Reacher.Ingestion.Tests/Reacher.Ingestion.Tests.csproj" />
+    <Project Path="tests/Reacher.WebsiteAnalysis.Tests/Reacher.WebsiteAnalysis.Tests.csproj" />
+  </Folder>
+</Solution>
