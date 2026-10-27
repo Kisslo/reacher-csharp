@@ -14,6 +14,8 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # Read-only, so psql can run the dev seed from any shell (see the README).
+      - ./backend/src/Reacher.Data/Seed:/seed:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U reacher -d reacher"]
       interval: 5s

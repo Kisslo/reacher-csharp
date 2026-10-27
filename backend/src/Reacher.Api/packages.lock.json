@@ -20,6 +20,15 @@
           "Microsoft.EntityFrameworkCore.Relational": "10.0.14"
         }
       },
+      "EFCore.NamingConventions": {
+        "type": "Transitive",
+        "resolved": "10.0.1",
+        "contentHash": "Xs5k8XfNKPkkQSkGmZkmDI1je0prLTdxse+s8PgTFZxyBrlrTLzTBUTVJtQKSsbvu4y+luAv8DdtO5SALJE++A==",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore": "[10.0.1, 11.0.0)",
+          "Microsoft.EntityFrameworkCore.Relational": "[10.0.1, 11.0.0)"
+        }
+      },
       "Microsoft.EntityFrameworkCore": {
         "type": "Transitive",
         "resolved": "10.0.14",
@@ -157,6 +166,7 @@
       "reacher.data": {
         "type": "Project",
         "dependencies": {
+          "EFCore.NamingConventions": "[10.0.1, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )"
         }
       },
