@@ -43,6 +43,8 @@ internal static class ReacherApiFactory
             ["Bolagsverket:ClientSecret"] = Placeholder,
             ["Brave:ApiKey"] = Placeholder,
             ["PageSpeed:ApiKey"] = Placeholder,
+            // Some tests point at a database that does not exist.
+            ["Database:MigrateOnStartup"] = "false",
         };
 
         if (omitSetting is not null)

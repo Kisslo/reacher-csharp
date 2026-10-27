@@ -23,3 +23,7 @@ end_of_line = crlf
 [backend/tests/**.cs]
 # Test names read as sentences: Health_returns_503_when_database_is_unreachable.
 dotnet_diagnostic.CA1707.severity = none
+
+[backend/src/Reacher.Data/Migrations/**.cs]
+# Written by dotnet ef. Analyzers and dotnet format skip generated code.
+generated_code = true
