@@ -19,21 +19,7 @@ internal static class ReacherApiFactory
         "Host=127.0.0.1;Port=1;Database=x;Username=x;Password=x;Timeout=2";
 
     /// <summary>Runs the real Program.cs in memory against the given database.</summary>
-    public static WebApplicationFactory<Program> Create(string connectionString) =>
-        CreateCore(connectionString, omitSetting: null);
-
-    /// <summary>
-    /// Same as <see cref="Create(string)"/>, but one required setting is blank so
-    /// startup validation fails.
-    /// </summary>
-    public static WebApplicationFactory<Program> Create(
-        string connectionString,
-        string omitSetting) =>
-        CreateCore(connectionString, omitSetting);
-
-    private static WebApplicationFactory<Program> CreateCore(
-        string connectionString,
-        string? omitSetting)
+    public static WebApplicationFactory<Program> Create(string connectionString)
     {
         var settings = new Dictionary<string, string?>
         {
@@ -46,15 +32,6 @@ internal static class ReacherApiFactory
             // Some tests point at a database that does not exist.
             ["Database:MigrateOnStartup"] = "false",
         };
-
-        if (omitSetting is not null)
-        {
-            settings[omitSetting] = "";
-            if (omitSetting != "Brave:ApiKey")
-            {
-                settings["Brave:ApiKey"] = Sentinel;
-            }
-        }
 
         // UseSetting writes straight onto the configuration manager, so these values
         // win over appsettings and any user-secrets on this machine. An empty string

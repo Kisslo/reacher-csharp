@@ -59,14 +59,24 @@ public sealed class OptionsTests
     [InlineData("PageSpeed:ApiKey")]
     public void Startup_fails_when_a_required_key_is_missing(string setting)
     {
-        using var factory = ReacherApiFactory.Create(
-            ReacherApiFactory.UnreachableDatabase,
-            setting);
-
-        var exception = Record.Exception(() =>
+        var settings = new Dictionary<string, string?>
         {
-            using var client = factory.CreateClient();
-        });
+            ["Scb:ApiKey"] = "test-only",
+            ["Bolagsverket:ClientId"] = "test-only",
+            ["Bolagsverket:ClientSecret"] = "test-only",
+            ["Brave:ApiKey"] = ReacherApiFactory.Sentinel,
+            ["PageSpeed:ApiKey"] = "test-only",
+        };
+        settings[setting] = "";
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
+
+        var services = new ServiceCollection();
+        services.AddReacherOptions(configuration);
+        using var provider = services.BuildServiceProvider();
+
+        // The same check the host runs in StartAsync, without the host's start-up race.
+        var exception = Record.Exception(
+            () => provider.GetRequiredService<IStartupValidator>().Validate());
 
         Assert.NotNull(exception);
         var text = exception.ToString();
