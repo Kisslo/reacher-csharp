@@ -5,3 +5,5 @@
 *.xls  binary
 *.db   binary
 *.sln  text eol=crlf
+
+**/packages.lock.json merge=binary

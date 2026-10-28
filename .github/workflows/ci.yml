@@ -21,6 +21,9 @@ jobs:
           cache: true
           cache-dependency-path: backend/**/packages.lock.json
 
+      # The SDK that global.json resolved to. Must be 10.0.1xx.
+      - run: dotnet --version
+
       # Fails if someone changed a package without committing packages.lock.json.
       - run: dotnet restore --locked-mode
 
