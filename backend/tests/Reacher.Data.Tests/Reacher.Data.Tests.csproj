@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Reacher.Data\Reacher.Data.csproj" />
+    <ProjectReference Include="..\..\src\Reacher.WebsiteAnalysis\Reacher.WebsiteAnalysis.csproj" />
   </ItemGroup>
 
   <ItemGroup>
