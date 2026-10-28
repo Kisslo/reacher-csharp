@@ -343,6 +343,8 @@
       "reacher.websiteanalysis": {
         "type": "Project",
         "dependencies": {
+          "AngleSharp": "[1.8.6, )",
+          "Microsoft.Extensions.Http": "[10.0.14, )",
           "Reacher.Data": "[1.0.0, )"
         }
       }
