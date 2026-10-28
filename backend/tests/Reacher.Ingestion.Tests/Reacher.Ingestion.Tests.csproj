@@ -23,6 +23,8 @@
     <None Update="Scb\Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- A made-up annual report (hard rule 8). -->
     <None Update="Bolagsverket\Fixtures\*.xhtml" CopyToOutputDirectory="PreserveNewest" />
+    <!-- A recorded document list with made-up ids (hard rule 8). -->
+    <None Update="Bolagsverket\Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 
