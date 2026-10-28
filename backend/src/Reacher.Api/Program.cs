@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Reacher.Api;
 using Reacher.Data;
+using Reacher.Ingestion.Scb;
+using Reacher.WebsiteAnalysis;
 using Reacher.WebsiteAnalysis.Brave;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,6 +16,9 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 builder.Services.AddReacherOptions(builder.Configuration);
 builder.Services.AddBraveSearch();
+builder.Services.AddWebsiteAnalysis();
+
+builder.Services.AddScbClient();
 
 builder.Services.AddDbContext<ReacherDbContext>(options => options.UseNpgsql(connectionString));
 
