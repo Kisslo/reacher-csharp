@@ -95,6 +95,16 @@ dotnet test      # needs Docker running (Testcontainers)
 ```
 After adding a NuGet package, commit the updated `packages.lock.json`.
 
+Never edit or hand-merge a `packages.lock.json`. If merging `main` gives a conflict in one,
+take `main`'s version and let NuGet regenerate it (PowerShell, from the repo root):
+```
+git merge origin/main
+git diff --name-only --diff-filter=U -- '*packages.lock.json' | ForEach-Object { git checkout --theirs -- $_ }
+dotnet restore backend --force-evaluate
+git add backend
+git commit --no-edit
+```
+
 ## Repo layout
 ```
 backend/   .NET solution (Reacher.slnx): Api, Data, Ingestion, WebsiteAnalysis + tests

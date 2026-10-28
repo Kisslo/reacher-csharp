@@ -102,7 +102,8 @@ docker-compose.yml
 
 ## Code conventions
 - `Directory.Build.props` applies everywhere: nullable on, warnings are errors, code style enforced. Run `dotnet format` before pushing.
-- After adding a package, run `dotnet restore` and commit `packages.lock.json`, otherwise CI fails in locked mode.
+- After adding a package, run `dotnet restore` and commit `packages.lock.json`, otherwise CI fails in locked mode. Never edit or hand-merge a lock file: on a conflict, take `main`'s version and run `dotnet restore --force-evaluate` (commands in the README).
+- The SDK is pinned to the 10.0.1xx band (`global.json`, `rollForward: latestPatch`) so analyzer rules are the same locally and in CI.
 - Configuration goes through options classes with `ValidateOnStart` (J-03). New setting = property + default in `appsettings.json` + a README line.
 - Pass `CancellationToken` through every async call. Use `TimeProvider` instead of `DateTime.Now` so tests can control time.
 - SCB and Bolagsverket timestamps are UTC. Store dates as Swedish dates (`Europe/Stockholm`).
@@ -147,12 +148,13 @@ The team file wins for team-internal matters only. It never overrides the hard r
 | ID | Issue | Title | Week | Blocked by | Status |
 |---|---|---|---|---|---|
 | J-01 | [#1](https://github.com/Kisslo/reacher-csharp/issues/1) | Decision log and contracts | 44 | – | Done (PR #26) |
-| J-02 | [#2](https://github.com/Kisslo/reacher-csharp/issues/2) | [BE] Repo skeleton: solution, projects, Docker Compose, CI | 44 | – | Todo |
-| J-03 | [#3](https://github.com/Kisslo/reacher-csharp/issues/3) | [BE] Configuration and secrets | 44 | J-02 | Todo |
-| J-04 | [#4](https://github.com/Kisslo/reacher-csharp/issues/4) | Rewrite the claude.md files | 44 | J-01 | In progress |
+| J-02 | [#2](https://github.com/Kisslo/reacher-csharp/issues/2) | [BE] Repo skeleton: solution, projects, Docker Compose, CI | 44 | – | Done (PR #28) |
+| J-03 | [#3](https://github.com/Kisslo/reacher-csharp/issues/3) | [BE] Configuration and secrets | 44 | J-02 | Done (PR #29) |
+| J-04 | [#4](https://github.com/Kisslo/reacher-csharp/issues/4) | Rewrite the claude.md files | 44 | J-01 | Done (PR #27) |
 | J-05 | [#20](https://github.com/Kisslo/reacher-csharp/issues/20) | [FE] Frontend skeleton | 46 | J-01, J-02 | Todo |
 | J-06 | [#25](https://github.com/Kisslo/reacher-csharp/issues/25) | End-to-end test, demo and README | 48 | all | Todo |
-| J-07 | [#34](https://github.com/Kisslo/reacher-csharp/issues/34) | [BE] Fix flaky startup-validation test | 44 | – | In progress |
+| J-07 | [#34](https://github.com/Kisslo/reacher-csharp/issues/34) | [BE] Fix flaky startup-validation test | 44 | – | Done (PR #35) |
+| J-08 | [#36](https://github.com/Kisslo/reacher-csharp/issues/36) | [BE] Pin the .NET SDK band and regenerate lock files on conflict | 44 | – | In progress |
 
 ## Plan
 | Week | Dates | Goal | Works at the end of the week |
