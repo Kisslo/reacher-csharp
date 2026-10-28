@@ -1,3 +1,5 @@
+using Reacher.WebsiteAnalysis.Matching;
+
 namespace Reacher.WebsiteAnalysis.Brave;
 
 /// <summary>
@@ -5,7 +7,12 @@ namespace Reacher.WebsiteAnalysis.Brave;
 /// </summary>
 public interface IBraveSearchClient
 {
+    /// <summary>
+    /// Runs one search. <paramref name="query"/> is sent unchanged as <c>q</c>.
+    /// Build it with <see cref="WebsiteQuery.Build(string, string?)"/>; this method does not
+    /// strip the legal form or add the city.
+    /// </summary>
     Task<IReadOnlyList<BraveSearchResult>> SearchAsync(
-        string companyName,
+        string query,
         CancellationToken cancellationToken);
 }

@@ -7,6 +7,7 @@ namespace Reacher.WebsiteAnalysis.Brave;
 
 /// <summary>
 /// Calls Brave's web search API for one company at a time.
+/// The query string is sent unchanged as <c>q</c>.
 /// </summary>
 public sealed class BraveSearchClient(
     HttpClient httpClient,
@@ -18,12 +19,12 @@ public sealed class BraveSearchClient(
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<IReadOnlyList<BraveSearchResult>> SearchAsync(
-        string companyName,
+        string query,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(companyName))
+        if (string.IsNullOrWhiteSpace(query))
         {
-            throw new ArgumentException("Company name is required.", nameof(companyName));
+            throw new ArgumentException("Search query is required.", nameof(query));
         }
 
         var braveOptions = options.Value;
@@ -40,7 +41,7 @@ public sealed class BraveSearchClient(
         }
 
         var requestUri =
-            $"res/v1/web/search?q={Uri.EscapeDataString(companyName)}&count={ResultCount}"
+            $"res/v1/web/search?q={Uri.EscapeDataString(query)}&count={ResultCount}"
             + "&country=se&search_lang=sv";
         using var request = new HttpRequestMessage(HttpMethod.Get, requestUri);
         request.Headers.Add("X-Subscription-Token", braveOptions.ApiKey);

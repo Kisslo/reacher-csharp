@@ -2,6 +2,7 @@ using System.Net;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Reacher.WebsiteAnalysis.Analysis;
+using Reacher.WebsiteAnalysis.Matching;
 using Reacher.WebsiteAnalysis.Options;
 
 namespace Reacher.WebsiteAnalysis;
@@ -15,6 +16,7 @@ public static class WebsiteAnalysisServiceCollectionExtensions
         services.AddSingleton<IDnsLookup, SystemDnsLookup>();
         services.AddSingleton<UrlSafety>();
         services.AddSingleton<ReworkScoreCalculator>();
+        services.AddSingleton<WebsiteMatcher>();
         services.AddTransient<WebsiteAnalyzer>();
 
         // The query string contains the page URL and the API key (D16).
