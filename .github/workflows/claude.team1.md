@@ -59,7 +59,7 @@ Real annual reports are messier than the fixture. These rules all come from bugs
 |---|---|---|---|---|---|
 | T1-01 | [#5](https://github.com/Kisslo/reacher-csharp/issues/5) | [BE] EF Core entities and first migration | 45 | J-01, J-02 | Todo |
 | T1-02 | [#6](https://github.com/Kisslo/reacher-csharp/issues/6) | [BE] SCB client | 45 | J-02, J-03 | Todo |
-| T1-03 | [#7](https://github.com/Kisslo/reacher-csharp/issues/7) | [BE] iXBRL parser | 45 | J-02 | Todo |
+| T1-03 | [#7](https://github.com/Kisslo/reacher-csharp/issues/7) | [BE] iXBRL parser | 45 | J-02 | In review |
 | T1-04 | [#8](https://github.com/Kisslo/reacher-csharp/issues/8) | [BE] Bolagsverket client | 45 | J-02, J-03 | Todo |
 | T1-08 | [#12](https://github.com/Kisslo/reacher-csharp/issues/12) | [BE] Code tables and endpoints | 45 | T1-01, T1-02 | Todo |
 | T1-05 | [#9](https://github.com/Kisslo/reacher-csharp/issues/9) | [BE] SCB ingest pipeline | 46 | T1-01, T1-02 | Todo |
