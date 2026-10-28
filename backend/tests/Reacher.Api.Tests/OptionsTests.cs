@@ -26,6 +26,8 @@ public sealed class OptionsTests
                 ["Brave:UseFake"] = "true",
                 ["PageSpeed:ApiKey"] = "test-only",
                 ["ReworkScore:PerformanceWeight"] = "0.55",
+                ["Matching:HighConfidenceThreshold"] = "0.9",
+                ["Matching:BlockedDomains:0"] = "example.test",
             })
             .Build();
 
@@ -38,6 +40,7 @@ public sealed class OptionsTests
         var ingest = provider.GetRequiredService<IOptions<IngestOptions>>().Value;
         var brave = provider.GetRequiredService<IOptions<BraveOptions>>().Value;
         var rework = provider.GetRequiredService<IOptions<ReworkScoreOptions>>().Value;
+        var matching = provider.GetRequiredService<IOptions<MatchingOptions>>().Value;
 
         Assert.Equal(100, scb.PageSize);
         var tag = Assert.Single(bolagsverket.TagMap);
@@ -52,6 +55,8 @@ public sealed class OptionsTests
         Assert.Equal(1500, brave.MonthlyCap);
         Assert.Equal(1, brave.RequestsPerSecond);
         Assert.Equal(0.55, rework.PerformanceWeight);
+        Assert.Equal(0.9, matching.HighConfidenceThreshold);
+        Assert.Equal("example.test", Assert.Single(matching.BlockedDomains));
     }
 
     [Theory]

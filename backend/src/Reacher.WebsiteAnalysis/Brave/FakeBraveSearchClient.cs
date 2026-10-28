@@ -21,18 +21,18 @@ public sealed class FakeBraveSearchClient : IBraveSearchClient
     }
 
     public Task<IReadOnlyList<BraveSearchResult>> SearchAsync(
-        string companyName,
+        string query,
         CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(companyName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(query);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (string.Equals(companyName, NoWebsiteCompanyName, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(query, NoWebsiteCompanyName, StringComparison.OrdinalIgnoreCase))
         {
             return Task.FromResult<IReadOnlyList<BraveSearchResult>>([]);
         }
 
-        if (fixtures.TryGetValue(companyName, out var fixture))
+        if (fixtures.TryGetValue(query, out var fixture))
         {
             return Task.FromResult<IReadOnlyList<BraveSearchResult>>(
                 fixture.Take(3).ToArray());
@@ -42,7 +42,7 @@ public sealed class FakeBraveSearchClient : IBraveSearchClient
         [
             new(
                 new Uri("https://example.test/company"),
-                companyName,
+                query,
                 "Made-up result returned by the fake Brave client."),
         ];
 

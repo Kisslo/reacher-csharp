@@ -66,6 +66,7 @@ A missing required setting stops startup with the setting's name, never its valu
   and `UseFake` (true in Development). API key via user-secrets.
 - `PageSpeed`: strategy (`mobile`) and timeout (90 seconds). API key via user-secrets.
 - `ReworkScore`: weights and penalties. Starting assumption for the rework score.
+- `Matching`: directory and social block list, confidence thresholds, and the title bonus. Starting assumption until matching is measured.
 - `Database:MigrateOnStartup`: apply migrations when the API starts. False by default, true in `appsettings.Development.json`.
 - `ConnectionStrings:Default`: the Compose Postgres connection string, in `appsettings.Development.json`.
 

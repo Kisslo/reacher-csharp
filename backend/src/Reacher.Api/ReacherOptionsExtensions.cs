@@ -16,6 +16,7 @@ public static class ReacherOptionsExtensions
         Bind<BraveOptions>(services, configuration, BraveOptions.SectionName);
         Bind<PageSpeedOptions>(services, configuration, PageSpeedOptions.SectionName);
         Bind<ReworkScoreOptions>(services, configuration, ReworkScoreOptions.SectionName);
+        Bind<MatchingOptions>(services, configuration, MatchingOptions.SectionName);
         return services;
     }
 
