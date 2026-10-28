@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Reacher.Api;
+using Reacher.Api.Companies;
 using Reacher.Data;
 using Reacher.Ingestion.Scb;
 using Reacher.WebsiteAnalysis;
@@ -21,6 +22,7 @@ builder.Services.AddWebsiteAnalysis();
 builder.Services.AddScbClient();
 
 builder.Services.AddDbContext<ReacherDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddScoped<ICompanyQueryService, CompanyQueryService>();
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ReacherDbContext>("database");
@@ -44,5 +46,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapHealthChecks("/health");
+app.MapCompanyEndpoints();
 
 app.Run();
