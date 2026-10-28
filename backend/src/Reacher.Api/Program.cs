@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Reacher.Api;
 using Reacher.Api.Companies;
 using Reacher.Data;
+using Reacher.Ingestion.Bolagsverket;
 using Reacher.Ingestion.Scb;
 using Reacher.WebsiteAnalysis;
 using Reacher.WebsiteAnalysis.Brave;
@@ -20,6 +21,7 @@ builder.Services.AddBraveSearch();
 builder.Services.AddWebsiteAnalysis();
 
 builder.Services.AddScbClient();
+builder.Services.AddBolagsverketClient();
 
 builder.Services.AddDbContext<ReacherDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<ICompanyQueryService, CompanyQueryService>();
