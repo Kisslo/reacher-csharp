@@ -67,6 +67,25 @@ public sealed class BraveSearchClientTests
     }
 
     [Fact]
+    public async Task SearchAsync_returns_an_empty_list_when_brave_has_no_web_results()
+    {
+        string[] bodies =
+        [
+            """{"type":"search","mixed":{"type":"mixed","main":[],"top":[],"side":[]}}""",
+            """{"web":{}}""",
+        ];
+
+        foreach (var body in bodies)
+        {
+            var client = CreateClient(new RecordingHandler(body));
+
+            var results = await client.SearchAsync("Example", CancellationToken.None);
+
+            Assert.Empty(results);
+        }
+    }
+
+    [Fact]
     public async Task SearchAsync_throws_for_invalid_json()
     {
         var handler = new RecordingHandler("{");
