@@ -32,6 +32,6 @@ public sealed class IngestPostgresFixture : IAsyncLifetime
     {
         await using var db = CreateContext();
         await db.Database.ExecuteSqlRawAsync(
-            "TRUNCATE company, workplace, financial_fact, coverage CASCADE");
+            "TRUNCATE company, workplace, financial_fact, coverage, ingest_job CASCADE");
     }
 }

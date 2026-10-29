@@ -6,6 +6,7 @@ using Reacher.Api.Companies;
 using Reacher.Api.Websites;
 using Reacher.Data;
 using Reacher.Ingestion.Bolagsverket;
+using Reacher.Ingestion.Jobs;
 using Reacher.Ingestion.Scb;
 using Reacher.WebsiteAnalysis;
 using Reacher.WebsiteAnalysis.Brave;
@@ -28,6 +29,7 @@ builder.Services.AddBolagsverketClient();
 builder.Services.AddScoped<ScbIngestService>();
 builder.Services.AddSingleton<IxbrlParser>();
 builder.Services.AddScoped<FinancialsIngestService>();
+builder.Services.AddIngestJobs();
 
 builder.Services.AddDbContext<ReacherDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<ICompanyQueryService, CompanyQueryService>();
