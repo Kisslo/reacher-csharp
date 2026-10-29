@@ -17,6 +17,8 @@ TestResults/
 
 /CLAUDE.md
 /.cursor/
+/frontend/node_modules/
+/frontend/dist/
 
 Variabelbeskrivning_scb.pdf
 
