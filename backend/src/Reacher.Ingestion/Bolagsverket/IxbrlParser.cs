@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
@@ -39,6 +40,9 @@ public sealed partial class IxbrlParser
     // decimal holds 10^28 at most, so a larger scale cannot be a real amount.
     private const int MaxScale = 28;
 
+    // A heading is a short line. Longer text is a sentence or a whole section.
+    private const int MaxHeadingLength = 60;
+
     private static readonly XNamespace Xhtml = "http://www.w3.org/1999/xhtml";
 
     private static readonly XNamespace Ix = "http://www.xbrl.org/2013/inlineXBRL";
@@ -59,6 +63,10 @@ public sealed partial class IxbrlParser
         "Noter",
         "Underskrifter",
     ];
+
+    // The headings as HeadingOf compares them: without spaces.
+    private static readonly string[] CompactHeadings =
+        [.. Headings.Select(heading => Ignored().Replace(heading, ""))];
 
     // format without its prefix -> (thousands separators, decimal sign). The names come
     // from the XBRL Transformation Registry, where versions 1-4 name the same thing
@@ -248,20 +256,34 @@ public sealed partial class IxbrlParser
             .Select(unit => (string?)unit.Attribute("id") ?? "")
             .ToHashSet(StringComparer.Ordinal);
 
-    /// <summary>The known heading this element is, or null. Only text-only XHTML elements count.</summary>
+    /// <summary>
+    /// The known heading this element is, or null. The text of child elements counts too, so
+    /// a heading split over several spans or broken by a <c>br</c> is found. An element
+    /// around the heading can match as well. That is harmless: it comes right before the
+    /// heading in reading order.
+    /// </summary>
     private static string? HeadingOf(XElement element)
     {
-        if (element.Name.Namespace != Xhtml || element.HasElements)
+        if (element.Name.Namespace != Xhtml)
         {
             return null;
         }
 
-        var text = Whitespace().Replace(element.Value, " ").Trim();
+        // Spaces, soft hyphens and zero-width characters are removed, because a report made
+        // from a PDF can have them inside a word ("Flerårs översikt"). FormC turns an "å"
+        // written as "a" plus a combining ring into one character.
+        var text = Ignored().Replace(element.Value, "");
+        if (text.Length > MaxHeadingLength)
+        {
+            return null;
+        }
 
-        // "Flerårsöversikt (tkr)" is the same heading.
-        return Array.Find(Headings, heading =>
-            text.Equals(heading, StringComparison.OrdinalIgnoreCase)
-            || text.StartsWith(heading + " (", StringComparison.OrdinalIgnoreCase));
+        text = text.Normalize(NormalizationForm.FormC);
+        var index = Array.FindIndex(CompactHeadings, heading =>
+            text.StartsWith(heading, StringComparison.OrdinalIgnoreCase)
+            && HeadingSuffix().IsMatch(text[heading.Length..]));
+
+        return index < 0 ? null : Headings[index];
     }
 
     private static bool TryRead(
@@ -390,6 +412,16 @@ public sealed partial class IxbrlParser
     [GeneratedRegex(@"^[0-9]+(\.[0-9]+)?$")]
     private static partial Regex PlainDecimal();
 
+    // Whitespace (also no-break spaces), soft hyphens and zero-width characters.
+    [GeneratedRegex(@"[\s\u00AD\u200B-\u200D\uFEFF]+")]
+    private static partial Regex Ignored();
+
+    // What may follow a heading: nothing, a unit ("tkr"), or anything that starts with a
+    // character that is not a letter ("(tkr)", ", belopp i tkr", "2025", "*"). Never another
+    // word, so "Flerårsöversikten visar" and "Resultaträkningen" are not headings.
+    [GeneratedRegex(@"^(\P{L}.*|[tkm]?(kr|sek))?$", RegexOptions.IgnoreCase)]
+    private static partial Regex HeadingSuffix();
+
     [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Document {DocumentId}: {Tag} ({ContextRef}) is skipped: {Reason}.")]
@@ -402,7 +434,7 @@ public sealed partial class IxbrlParser
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "Document {DocumentId}: {Key} for {PeriodEnd} has different values, none is kept.")]
+        Message = "Document {DocumentId}: {Key} for {PeriodEnd:yyyy-MM-dd} has different values, none is kept.")]
     private static partial void LogConflict(
         ILogger logger,
         string documentId,
