@@ -16,6 +16,10 @@ public static class ScbServiceCollectionExtensions
     public static IHttpClientBuilder AddScbClient(this IServiceCollection services)
     {
         services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton(provider => new ScbRateLimiter(
+            TimeSpan.FromSeconds(
+                1.0 / provider.GetRequiredService<IOptions<ScbOptions>>().Value.RequestsPerSecond),
+            provider.GetRequiredService<TimeProvider>()));
 
         var builder = services.AddHttpClient<IScbClient, ScbClient>((provider, client) =>
         {

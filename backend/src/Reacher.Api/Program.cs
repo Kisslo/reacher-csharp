@@ -22,6 +22,7 @@ builder.Services.AddWebsiteAnalysis();
 
 builder.Services.AddScbClient();
 builder.Services.AddBolagsverketClient();
+builder.Services.AddScoped<ScbIngestService>();
 
 builder.Services.AddDbContext<ReacherDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<ICompanyQueryService, CompanyQueryService>();
