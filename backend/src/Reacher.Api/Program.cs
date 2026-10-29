@@ -1,6 +1,9 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Reacher.Api;
 using Reacher.Api.Companies;
+using Reacher.Api.Websites;
 using Reacher.Data;
 using Reacher.Ingestion.Bolagsverket;
 using Reacher.Ingestion.Scb;
@@ -26,10 +29,18 @@ builder.Services.AddScoped<ScbIngestService>();
 
 builder.Services.AddDbContext<ReacherDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<ICompanyQueryService, CompanyQueryService>();
+builder.Services.AddScoped<IWebsiteCandidateService, WebsiteCandidateService>();
 
 builder.Services.AddHealthChecks()
     .AddDbContextCheck<ReacherDbContext>("database");
 
+// Enums are numbers unless a converter is registered. Confidence must be
+// "high", "medium", or "low" on the wire and in the OpenAPI schema.
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(
+        new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+});
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
@@ -50,5 +61,6 @@ if (app.Environment.IsDevelopment())
 
 app.MapHealthChecks("/health");
 app.MapCompanyEndpoints();
+app.MapWebsiteEndpoints();
 
 app.Run();

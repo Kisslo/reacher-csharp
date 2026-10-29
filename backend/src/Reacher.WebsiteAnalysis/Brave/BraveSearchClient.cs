@@ -74,9 +74,16 @@ public sealed class BraveSearchClient(
                 exception);
         }
 
-        if (payload?.Web?.Results is null)
+        if (payload is null)
         {
             throw new BraveSearchException("Brave Search returned an invalid response.");
+        }
+
+        // Brave omits web when the search has no results. That is an empty
+        // list, not a failed call.
+        if (payload.Web?.Results is null)
+        {
+            return [];
         }
 
         var results = new List<BraveSearchResult>(Math.Min(payload.Web.Results.Count, ResultCount));
