@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Reacher.Data.Entities;
+using Reacher.Ingestion.Bolagsverket;
 using Reacher.Ingestion.Jobs;
 using Reacher.Ingestion.Scb;
 using Reacher.Ingestion.Tests.Scb;
@@ -72,16 +73,24 @@ public sealed class IngestWorkerTests(IngestPostgresFixture postgres)
     }
 
     [Fact]
-    public async Task The_message_of_our_own_exceptions_is_kept()
+    public async Task A_failed_job_keeps_our_own_message_and_where_it_stopped()
     {
-        _pipeline.Run = (_, _) => throw new ScbMaintenanceWindowException();
+        // As in a real run with wrong credentials: SCB is done, financials fail at once.
+        _pipeline.Run = (progress, _) =>
+        {
+            progress.Report(new IngestProgress(IngestPhases.Financials, 0, 51));
+            throw new BolagsverketAuthException("POST /oauth2/token: HTTP 401.");
+        };
         var jobId = await AddJobAsync(Stockholm);
 
         await using var worker = await StartWorkerAsync();
         await _queue.EnqueueAsync(jobId, CancellationToken.None);
 
         var failed = await WaitForAsync(jobId, IngestJobStatus.Failed);
-        Assert.Equal(new ScbMaintenanceWindowException().Message, failed.Error);
+        Assert.Equal("POST /oauth2/token: HTTP 401.", failed.Error);
+        Assert.Equal(IngestPhases.Financials, failed.Phase);
+        Assert.Equal(0, failed.Done);
+        Assert.Equal(51, failed.Total);
     }
 
     [Fact]

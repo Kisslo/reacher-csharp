@@ -87,6 +87,8 @@ public sealed partial class IngestWorker(
 
     private async Task RunJobAsync(Guid jobId, CancellationToken stoppingToken)
     {
+        // Outside the try, so a failed job also gets its last progress: where it stopped.
+        var progress = new LatestProgress();
         try
         {
             if (await MarkRunningAsync(jobId, stoppingToken) is not { } job)
@@ -94,7 +96,6 @@ public sealed partial class IngestWorker(
                 return;
             }
 
-            var progress = new LatestProgress();
             using var stopFlushing = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
             var flushing = FlushProgressAsync(jobId, progress, stopFlushing.Token);
             try
@@ -126,7 +127,7 @@ public sealed partial class IngestWorker(
             // This job fails, and the loop goes on with the next one.
             var reason = SafeReason(exception);
             LogFailed(logger, jobId, reason);
-            await MarkFailedAsync(jobId, reason, stoppingToken);
+            await MarkFailedAsync(jobId, reason, progress.Take(), stoppingToken);
         }
 
         // On shutdown the job is left as running, and the next start marks it failed.
@@ -182,7 +183,11 @@ public sealed partial class IngestWorker(
         }
     }
 
-    private async Task MarkFailedAsync(Guid jobId, string reason, CancellationToken stoppingToken)
+    private async Task MarkFailedAsync(
+        Guid jobId,
+        string reason,
+        IngestProgress? last,
+        CancellationToken stoppingToken)
     {
         try
         {
@@ -190,6 +195,7 @@ public sealed partial class IngestWorker(
                 jobId,
                 row =>
                 {
+                    Apply(row, last);
                     row.Status = IngestJobStatus.Failed;
                     row.Error = reason;
                     row.FinishedAt = time.GetUtcNow();
