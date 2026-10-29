@@ -26,6 +26,8 @@ builder.Services.AddWebsiteAnalysis();
 builder.Services.AddScbClient();
 builder.Services.AddBolagsverketClient();
 builder.Services.AddScoped<ScbIngestService>();
+builder.Services.AddSingleton<IxbrlParser>();
+builder.Services.AddScoped<FinancialsIngestService>();
 
 builder.Services.AddDbContext<ReacherDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<ICompanyQueryService, CompanyQueryService>();
@@ -62,5 +64,6 @@ if (app.Environment.IsDevelopment())
 app.MapHealthChecks("/health");
 app.MapCompanyEndpoints();
 app.MapWebsiteEndpoints();
+
 
 app.Run();

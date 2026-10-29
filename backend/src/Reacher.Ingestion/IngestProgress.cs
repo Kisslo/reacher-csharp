@@ -14,4 +14,7 @@ public static class IngestPhases
 
     /// <summary>Fetching each company from SCB. Done is n of m.</summary>
     public const string Companies = "companies";
+
+    /// <summary>Fetching annual reports from Bolagsverket. Done is n of m companies.</summary>
+    public const string Financials = "financials";
 }
