@@ -50,6 +50,25 @@ public sealed class IxbrlParserTests : IDisposable
     }
 
     [Fact]
+    public void Split_overview_heading_gives_values_from_the_income_statement_only()
+    {
+        // T1-11, the heading structure found in real reports: "Flerårsöversikt" with "(Tkr)"
+        // in child spans, so the heading is not a text-only element. The overview is in tkr
+        // and has two older years, so reading it would drop both revenue values as
+        // conflicts and add two years rounded to whole thousands.
+        Assert.Equal(
+            [
+                new FinancialValue(new DateOnly(2025, 4, 30), "net_result", -48_210),
+                new FinancialValue(new DateOnly(2025, 4, 30), "revenue", 4_388_615),
+                new FinancialValue(new DateOnly(2026, 4, 30), "net_result", 126_455),
+                new FinancialValue(new DateOnly(2026, 4, 30), "revenue", 4_702_330),
+            ],
+            Parse(Sample("arsredovisning_fiktiv_delad_rubrik.xhtml")));
+        Assert.DoesNotContain(_logs.Lines, line =>
+            line.Contains("different values", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Similar_tag_names_are_not_mixed_up()
     {
         // AretsResultatEgetKapital is not AretsResultat: the tag must match exactly.
@@ -181,7 +200,8 @@ public sealed class IxbrlParserTests : IDisposable
     {
         // A gap is better than guessing which figure is right.
         Assert.Empty(Values(Report(Fact("4 702 330"), Fact("4 702 331"))));
-        Assert.Contains(_logs.Lines, line => line.Contains("different values", StringComparison.Ordinal));
+        Assert.Contains(_logs.Lines, line =>
+            line.Contains("revenue for 2026-04-30 has different values", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -194,6 +214,13 @@ public sealed class IxbrlParserTests : IDisposable
     [InlineData("<h2>Flerårsöversikt</h2>")]
     [InlineData("<p><span>Flerårsöversikt (tkr)</span></p>")]
     [InlineData("<h3>  FLERÅRSÖVERSIKT  </h3>")]
+    [InlineData("<p><span>Flerårs</span><span>översikt</span></p>")] // split over spans
+    [InlineData("<p><span>Flerårs</span> <span>översikt</span></p>")] // with a space between
+    [InlineData("<p>Flerårsöversikt<br/>(tkr)</p>")]
+    [InlineData("<td><span>Flerårsöversikt</span>, <span>tkr</span></td>")]
+    [InlineData("<p>Flerårsöversikt tkr</p>")]
+    [InlineData("<p>Fler&#173;års&#173;översikt</p>")] // soft hyphens
+    [InlineData("<p>Flera&#778;rso&#776;versikt</p>")] // å and ö as a letter plus a combining mark
     public void The_multi_year_overview_is_skipped_until_the_next_heading(string heading)
     {
         // A real-report bug: tkr figures tagged with scale="0" in the overview.
@@ -206,10 +233,12 @@ public sealed class IxbrlParserTests : IDisposable
         Assert.Equal([new FinancialValue(FiscalYearEnd, "revenue", 4_702_330)], facts);
     }
 
-    [Fact]
-    public void A_heading_word_inside_a_sentence_does_not_start_a_section()
+    [Theory]
+    [InlineData("<p>Se Flerårsöversikt nedan.</p>")]
+    [InlineData("<p>Flerårsöversikten visar de senaste fyra åren.</p>")]
+    public void A_heading_word_inside_a_sentence_does_not_start_a_section(string text)
     {
-        var facts = Parse(Report("<p>Se Flerårsöversikt nedan.</p>", Fact("4 702 330")));
+        var facts = Parse(Report(text, Fact("4 702 330")));
 
         Assert.Equal([new FinancialValue(FiscalYearEnd, "revenue", 4_702_330)], facts);
     }
@@ -246,9 +275,9 @@ public sealed class IxbrlParserTests : IDisposable
         <xbrli:unit id="EUR"><xbrli:measure>iso4217:EUR</xbrli:measure></xbrli:unit>
         """;
 
-    private static string Sample() =>
+    private static string Sample(string fileName = "arsredovisning_fiktiv.xhtml") =>
         File.ReadAllText(Path.Combine(
-            AppContext.BaseDirectory, "Bolagsverket", "Fixtures", "arsredovisning_fiktiv.xhtml"));
+            AppContext.BaseDirectory, "Bolagsverket", "Fixtures", fileName));
 
     private static string Report(params string[] body) => $"""
         <?xml version="1.0" encoding="UTF-8"?>
