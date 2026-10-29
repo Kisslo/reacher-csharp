@@ -58,7 +58,7 @@ in that file. Locally they live in user-secrets for the API project. `dotnet run
 them when `ASPNETCORE_ENVIRONMENT` is Development, so no `.env` file is required.
 A missing required setting stops startup with the setting's name, never its value.
 
-- `Scb`: base URL and page size (max 5000). `Scb:ApiKey` via user-secrets.
+- `Scb`: base URL, page size (max 5000) and requests per second (default 2, max 10). `Scb:ApiKey` via user-secrets.
 - `Bolagsverket`: token URL, API URL, scope, years, and the iXBRL tag map.
   Client id and secret via user-secrets.
 - `Ingest`: freshness days (30) and allowed legal forms (`49`).

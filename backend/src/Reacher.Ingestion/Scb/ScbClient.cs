@@ -15,8 +15,11 @@ namespace Reacher.Ingestion.Scb;
 /// A peOrgNr is in the URL because SCB requires it there, so URLs are never logged:
 /// the HttpClient loggers are removed, and errors name the route template only.
 /// </remarks>
-public sealed class ScbClient(HttpClient http, IOptions<ScbOptions> options, TimeProvider time)
-    : IScbClient
+public sealed class ScbClient(
+    HttpClient http,
+    IOptions<ScbOptions> options,
+    TimeProvider time,
+    ScbRateLimiter rateLimiter) : IScbClient
 {
     private readonly int _pageSize = options.Value.PageSize;
 
@@ -120,6 +123,8 @@ public sealed class ScbClient(HttpClient http, IOptions<ScbOptions> options, Tim
         {
             throw new ScbMaintenanceWindowException();
         }
+
+        await rateLimiter.WaitAsync(cancellationToken);
 
         using var response = await http.GetAsync(new Uri(path, UriKind.Relative), cancellationToken);
 

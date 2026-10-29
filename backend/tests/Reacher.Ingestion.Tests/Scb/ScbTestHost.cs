@@ -39,7 +39,11 @@ internal sealed class ScbTestHost : IDisposable
             options.ApiKey = ApiKey;
             options.PageSize = 2;
         });
-        services.AddSingleton<TimeProvider>(new FixedTimeProvider(now ?? Noon));
+        var time = new FixedTimeProvider(now ?? Noon);
+        services.AddSingleton<TimeProvider>(time);
+        // No waiting here: the fake clock stands still, so a real interval would add up
+        // request by request. ScbRateLimiterTests covers the limiter itself.
+        services.AddSingleton(new ScbRateLimiter(TimeSpan.Zero, time));
         services.AddScbClient().ConfigurePrimaryHttpMessageHandler(() => handler);
         _provider = services.BuildServiceProvider();
     }

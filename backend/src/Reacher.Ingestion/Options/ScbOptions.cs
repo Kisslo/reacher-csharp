@@ -15,4 +15,7 @@ public sealed class ScbOptions
 
     [Range(1, 5000, ErrorMessage = "Setting 'Scb:PageSize' must be between 1 and 5000.")]
     public int PageSize { get; set; } = 5000;
+
+    [Range(1, 10, ErrorMessage = "Setting 'Scb:RequestsPerSecond' must be between 1 and 10.")]
+    public int RequestsPerSecond { get; set; } = 2;
 }
