@@ -24,6 +24,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/searches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a search
+         * @description Returns fresh when every municipality was ingested within the freshness window. Otherwise returns the queued or already running ingest job.
+         */
+        post: operations["StartSearch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{jobId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read an ingest job
+         * @description Status of one ingest job. Unknown ids return 404.
+         */
+        get: operations["GetIngestJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/companies/{orgnr}/website-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Find website candidates for one company
+         * @description Runs one Brave search and returns scored candidates. Nothing from Brave is stored. The response must not be cached.
+         */
+        post: operations["FindWebsiteCandidates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/website-analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Analyse one website
+         * @description Validates the URL, then returns a rework score. The result is not stored. The response must not be cached.
+         */
+        post: operations["AnalyzeWebsite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -76,6 +156,94 @@ export interface components {
             revenue: null | number | string;
             /** Format: double */
             netResult: null | number | string;
+        };
+        JobResponse: {
+            /** Format: uuid */
+            jobId: string;
+            status: string;
+            phase: null | string;
+            /** Format: int32 */
+            done: number | string;
+            /** Format: int32 */
+            total: null | number | string;
+            error: null | string;
+            /** Format: date-time */
+            startedAt: null | string;
+            /** Format: date-time */
+            finishedAt: null | string;
+        };
+        LighthouseResponse: {
+            /** Format: int32 */
+            performance: number | string;
+            /** Format: int32 */
+            accessibility: number | string;
+            /** Format: int32 */
+            bestPractices: number | string;
+            /** Format: int32 */
+            seo: number | string;
+        };
+        SearchFieldError: {
+            field: string;
+            message: string;
+        };
+        SearchProblem: {
+            type: string;
+            title: string;
+            /** Format: int32 */
+            status: number | string;
+            code: string;
+            errors: null | components["schemas"]["SearchFieldError"][];
+        };
+        SearchRequest: {
+            sni: null | string;
+            municipalities: null | string[];
+            refresh: boolean;
+        };
+        SearchResponse: {
+            /** Format: uuid */
+            jobId: null | string;
+            status: string;
+        };
+        WebsiteAnalysisRequest: {
+            url: null | string;
+        };
+        WebsiteAnalysisResponse: {
+            url: string;
+            /** Format: date-time */
+            fetchedAt: string;
+            /** Format: int32 */
+            reworkScore: number | string;
+            lighthouse: null | components["schemas"]["LighthouseResponse"];
+            checks: components["schemas"]["WebsiteChecksResponse"];
+        };
+        WebsiteCandidateResponse: {
+            url: string;
+            title: null | string;
+            confidence: components["schemas"]["WebsiteConfidence"];
+            preselected: boolean;
+        };
+        WebsiteCandidatesResponse: {
+            candidates: components["schemas"]["WebsiteCandidateResponse"][];
+            /** Format: int32 */
+            remainingMonthlyQuota: number | string;
+        };
+        WebsiteChecksResponse: {
+            https: boolean;
+            viewport: boolean;
+            generator: null | string;
+            /** Format: int32 */
+            copyrightYear: null | number | string;
+            /** Format: int64 */
+            responseTimeMs: number | string;
+        };
+        /** @enum {unknown} */
+        WebsiteConfidence: "low" | "medium" | "high";
+        WebsiteProblem: {
+            type: string;
+            title: string;
+            /** Format: int32 */
+            status: number | string;
+            code: string;
         };
         WorkplaceListItem: {
             name: null | string;
@@ -132,6 +300,197 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["CompanySearchProblem"];
+                };
+            };
+        };
+    };
+    StartSearch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["SearchRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResponse"];
+                };
+            };
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["SearchProblem"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["SearchProblem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["SearchProblem"];
+                };
+            };
+        };
+    };
+    GetIngestJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["SearchProblem"];
+                };
+            };
+        };
+    };
+    FindWebsiteCandidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orgnr: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebsiteCandidatesResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WebsiteProblem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WebsiteProblem"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WebsiteProblem"];
+                };
+            };
+        };
+    };
+    AnalyzeWebsite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": null | components["schemas"]["WebsiteAnalysisRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebsiteAnalysisResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WebsiteProblem"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WebsiteProblem"];
+                };
+            };
+            /** @description Gateway Timeout */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["WebsiteProblem"];
                 };
             };
         };

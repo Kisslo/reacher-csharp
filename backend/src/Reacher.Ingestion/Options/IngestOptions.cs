@@ -17,4 +17,10 @@ public sealed class IngestOptions
         1,
         ErrorMessage = "Setting 'Ingest:AllowedLegalForms' must contain at least one legal form.")]
     public List<string> AllowedLegalForms { get; set; } = [];
+
+    /// <summary>
+    /// When true, <c>POST /api/searches</c> uses an in-memory coordinator that simulates
+    /// progress. False uses <c>IngestCoordinator</c>.
+    /// </summary>
+    public bool UseFakeCoordinator { get; set; }
 }

@@ -50,6 +50,7 @@ public sealed class OptionsTests
         Assert.Equal("se-gen-base:Nettoomsattning", tagName);
         Assert.Equal("revenue", tag.Fact);
         Assert.Equal("49", Assert.Single(ingest.AllowedLegalForms));
+        Assert.False(ingest.UseFakeCoordinator);
         Assert.True(brave.UseFake);
         Assert.Equal("https://api.search.brave.com/", brave.BaseAddress);
         Assert.Equal(1500, brave.MonthlyCap);
