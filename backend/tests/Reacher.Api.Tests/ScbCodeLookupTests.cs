@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Caching.Memory;
+using Reacher.Api.Codes;
 using Reacher.Api.Searches;
 using Reacher.Ingestion.Scb;
 
@@ -11,17 +12,17 @@ public sealed class ScbCodeLookupTests
     {
         using var cache = new MemoryCache(new MemoryCacheOptions());
         var scb = new RecordingScbClient();
-        scb.Tables[ScbCodeLookup.SniTableName] =
+        scb.Tables[ScbCodeTables.SniTableName] =
         [
             new CodeItem("96.210", "Example"),
             new CodeItem("96220", "Example"),
         ];
-        scb.Tables[ScbCodeLookup.MunicipalityTableName] =
+        scb.Tables[ScbCodeTables.MunicipalityTableName] =
         [
             new CodeItem("180", "Example"),
             new CodeItem("0184", "Example"),
         ];
-        var lookup = new ScbCodeLookup(scb, cache);
+        var lookup = new ScbCodeLookup(new ScbCodeTables(scb, cache));
 
         Assert.True(await lookup.IsKnownSniAsync("96210", CancellationToken.None));
         Assert.False(await lookup.IsKnownSniAsync("99999", CancellationToken.None));
@@ -39,12 +40,32 @@ public sealed class ScbCodeLookupTests
     }
 
     [Fact]
+    public async Task Scb_placeholder_rows_are_not_known_municipalities()
+    {
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var scb = new RecordingScbClient();
+        scb.Tables[ScbCodeTables.MunicipalityTableName] =
+        [
+            new CodeItem("0180", "Stockholm"),
+            new CodeItem("0000", "Kommunkod saknas"),
+            new CodeItem("9999", "Ej svensk hemortskommun"),
+        ];
+        var lookup = new ScbCodeLookup(new ScbCodeTables(scb, cache));
+
+        var unknown = await lookup.UnknownMunicipalitiesAsync(
+            ["0180", "0000", "9999"],
+            CancellationToken.None);
+
+        Assert.Equal(["0000", "9999"], unknown);
+    }
+
+    [Fact]
     public async Task Empty_table_is_not_cached()
     {
         using var cache = new MemoryCache(new MemoryCacheOptions());
         var scb = new RecordingScbClient();
-        scb.Tables[ScbCodeLookup.SniTableName] = [];
-        var lookup = new ScbCodeLookup(scb, cache);
+        scb.Tables[ScbCodeTables.SniTableName] = [];
+        var lookup = new ScbCodeLookup(new ScbCodeTables(scb, cache));
 
         await Assert.ThrowsAsync<ScbException>(() =>
             lookup.IsKnownSniAsync("96210", CancellationToken.None));
@@ -52,39 +73,5 @@ public sealed class ScbCodeLookupTests
             lookup.IsKnownSniAsync("96210", CancellationToken.None));
 
         Assert.Equal(2, scb.TableCalls);
-    }
-
-    private sealed class RecordingScbClient : IScbClient
-    {
-        public int TableCalls { get; private set; }
-
-        public Dictionary<string, IReadOnlyList<CodeItem>> Tables { get; } = [];
-
-        public Task<IReadOnlyList<CodeItem>> GetCodeTable(
-            string table,
-            CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            TableCalls++;
-            return Task.FromResult(Tables[table]);
-        }
-
-        public IAsyncEnumerable<WorkplacePartial> GetWorkplacesBySni(
-            string sni,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<WorkplaceFull?> GetWorkplace(
-            string cfarNr,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<LegalUnitFull?> GetLegalUnit(
-            string peOrgNr,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<int> CountWorkplacesBySni(string sni, CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
     }
 }

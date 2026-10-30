@@ -3,6 +3,7 @@ const errorMessages: Record<string, string> = {
     brave_quota_exceeded: 'Månadens gräns för webbplatssökningar är nådd.',
     invalid_search:
         'Sökningen är inte giltig. Kontrollera SNI-kod och kommuner.',
+    invalid_sni: 'SNI-koden måste bestå av fem siffror.',
     invalid_url: 'Webbadressen är inte giltig.',
     job_not_found: 'Sökjobbet hittades inte.',
     scb_unavailable: 'SCB kan inte nås just nu. Försök igen senare.',

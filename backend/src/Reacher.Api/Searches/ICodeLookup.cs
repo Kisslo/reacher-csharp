@@ -1,9 +1,8 @@
 namespace Reacher.Api.Searches;
 
 /// <summary>
-/// Whether an SNI code and municipality codes are known. T1-08 will own the code-table
-/// endpoints; <see cref="ScbCodeLookup"/> is the check <c>POST /api/searches</c> uses until
-/// that cache can be shared.
+/// Whether an SNI code and municipality codes are known. <c>POST /api/searches</c> uses
+/// this; <see cref="ScbCodeLookup"/> answers from the tables behind <c>/api/codes</c>.
 /// </summary>
 public interface ICodeLookup
 {
