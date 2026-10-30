@@ -1,0 +1,90 @@
+using Microsoft.Extensions.Caching.Memory;
+using Reacher.Api.Searches;
+using Reacher.Ingestion.Scb;
+
+namespace Reacher.Api.Tests;
+
+public sealed class ScbCodeLookupTests
+{
+    [Fact]
+    public async Task Known_codes_match_after_normalising_and_the_table_is_cached()
+    {
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var scb = new RecordingScbClient();
+        scb.Tables[ScbCodeLookup.SniTableName] =
+        [
+            new CodeItem("96.210", "Example"),
+            new CodeItem("96220", "Example"),
+        ];
+        scb.Tables[ScbCodeLookup.MunicipalityTableName] =
+        [
+            new CodeItem("180", "Example"),
+            new CodeItem("0184", "Example"),
+        ];
+        var lookup = new ScbCodeLookup(scb, cache);
+
+        Assert.True(await lookup.IsKnownSniAsync("96210", CancellationToken.None));
+        Assert.False(await lookup.IsKnownSniAsync("99999", CancellationToken.None));
+        Assert.Equal(1, scb.TableCalls);
+
+        var unknown = await lookup.UnknownMunicipalitiesAsync(
+            ["0180", "9999"],
+            CancellationToken.None);
+        Assert.Equal(["9999"], unknown);
+        Assert.Equal(2, scb.TableCalls);
+
+        Assert.True(await lookup.IsKnownSniAsync("96220", CancellationToken.None));
+        await lookup.UnknownMunicipalitiesAsync(["0184"], CancellationToken.None);
+        Assert.Equal(2, scb.TableCalls);
+    }
+
+    [Fact]
+    public async Task Empty_table_is_not_cached()
+    {
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var scb = new RecordingScbClient();
+        scb.Tables[ScbCodeLookup.SniTableName] = [];
+        var lookup = new ScbCodeLookup(scb, cache);
+
+        await Assert.ThrowsAsync<ScbException>(() =>
+            lookup.IsKnownSniAsync("96210", CancellationToken.None));
+        await Assert.ThrowsAsync<ScbException>(() =>
+            lookup.IsKnownSniAsync("96210", CancellationToken.None));
+
+        Assert.Equal(2, scb.TableCalls);
+    }
+
+    private sealed class RecordingScbClient : IScbClient
+    {
+        public int TableCalls { get; private set; }
+
+        public Dictionary<string, IReadOnlyList<CodeItem>> Tables { get; } = [];
+
+        public Task<IReadOnlyList<CodeItem>> GetCodeTable(
+            string table,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            TableCalls++;
+            return Task.FromResult(Tables[table]);
+        }
+
+        public IAsyncEnumerable<WorkplacePartial> GetWorkplacesBySni(
+            string sni,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<WorkplaceFull?> GetWorkplace(
+            string cfarNr,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<LegalUnitFull?> GetLegalUnit(
+            string peOrgNr,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<int> CountWorkplacesBySni(string sni, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+    }
+}

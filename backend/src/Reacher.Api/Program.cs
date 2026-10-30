@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Reacher.Api;
 using Reacher.Api.Companies;
+using Reacher.Api.Searches;
 using Reacher.Api.Websites;
 using Reacher.Data;
 using Reacher.Ingestion.Bolagsverket;
@@ -30,6 +31,33 @@ builder.Services.AddScoped<ScbIngestService>();
 builder.Services.AddSingleton<IxbrlParser>();
 builder.Services.AddScoped<FinancialsIngestService>();
 builder.Services.AddIngestJobs();
+
+// Public code lists, cached. Not Brave data.
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ICodeLookup, ScbCodeLookup>();
+
+// The fake is for the frontend. Production and the default leave this false and use
+// IngestCoordinator, which writes a real ingest_job row.
+if (builder.Configuration.GetValue<bool>("Ingest:UseFakeCoordinator"))
+{
+    var workers = builder.Services
+        .Where(descriptor => descriptor.ImplementationType == typeof(IngestWorker))
+        .ToList();
+    foreach (var worker in workers)
+    {
+        builder.Services.Remove(worker);
+    }
+
+    builder.Services.AddSingleton<FakeIngestCoordinator>();
+    builder.Services.AddSingleton<IIngestCoordinator>(
+        services => services.GetRequiredService<FakeIngestCoordinator>());
+    builder.Services.AddSingleton<IIngestJobReader>(
+        services => services.GetRequiredService<FakeIngestCoordinator>());
+}
+else
+{
+    builder.Services.AddScoped<IIngestJobReader, IngestJobReader>();
+}
 
 builder.Services.AddDbContext<ReacherDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<ICompanyQueryService, CompanyQueryService>();
@@ -65,6 +93,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapHealthChecks("/health");
 app.MapCompanyEndpoints();
+app.MapSearchEndpoints();
 app.MapWebsiteEndpoints();
 
 
