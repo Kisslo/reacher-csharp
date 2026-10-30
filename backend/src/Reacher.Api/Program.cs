@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Reacher.Api;
+using Reacher.Api.Codes;
 using Reacher.Api.Companies;
 using Reacher.Api.Searches;
 using Reacher.Api.Websites;
@@ -34,6 +35,7 @@ builder.Services.AddIngestJobs();
 
 // Public code lists, cached. Not Brave data.
 builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ICodeTables, ScbCodeTables>();
 builder.Services.AddScoped<ICodeLookup, ScbCodeLookup>();
 
 // The fake is for the frontend. Production and the default leave this false and use
@@ -92,6 +94,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapHealthChecks("/health");
+app.MapCodeEndpoints();
 app.MapCompanyEndpoints();
 app.MapSearchEndpoints();
 app.MapWebsiteEndpoints();

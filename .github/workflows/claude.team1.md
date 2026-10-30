@@ -17,7 +17,7 @@ Folder paths are a suggestion until J-02 lands. Update the table if they change.
 | SCB ingest + eligibility (D5) | `backend/src/Reacher.Ingestion/Scb/ScbIngestService.cs` | T1-05 |
 | Financials ingest | `backend/src/Reacher.Ingestion/Bolagsverket/FinancialsIngestService.cs` | T1-06 |
 | Ingest job: queue, worker, coordinator, freshness | `backend/src/Reacher.Ingestion/Jobs/` + registration in `Reacher.Api` | T1-07 |
-| Code tables + `/api/codes/*` | `backend/src/Reacher.Ingestion/Scb/` + endpoints in `Reacher.Api` | T1-08 |
+| Code tables + `/api/codes/*` | `backend/src/Reacher.Api/Codes/` | T1-08 |
 | SCB field documentation | `docs/scb-fields.md` | – |
 | Search form, ingest progress | `frontend/src/features/search/` | T1-09 |
 | Company table and filters | `frontend/src/features/companies/` | T1-10 |
@@ -74,7 +74,6 @@ Week 45 is the heaviest. If something slips, T1-08 can wait (only T1-09 in week 
 *2026-10-27:* nothing started yet. J-01 is merged. T1-03 can start as soon as J-02 is merged; T1-01 too.
 
 ## Team 1 open questions
-- **SNI code table (T1-08):** does SCB's `kodtabeller` include SNI 2025? If not, ship a static file built from SCB's published list.
 - **Stop paging at the first `19`/`20` (T1-05):** the list is sorted by `peOrgNr`, so this would save calls. Only do it with a test showing it holds, and log how many pages were skipped.
 - **Ingest duration (T1-07):** measure how long a large search takes and tell Team 2, so the progress view can set expectations.
 - **Financials and the 30-day freshness:** annual reports change yearly, so a refresh re-checks the document list but rarely downloads anything. Confirm that's how T1-06 behaves.
