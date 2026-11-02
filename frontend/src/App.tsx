@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { fetchHealth } from './api/health';
+import { SearchPage } from './features/search/SearchPage';
 import { commonText } from './texts/common';
+import { searchText } from './texts/search';
 
 function App() {
     const healthQuery = useQuery({
@@ -16,6 +18,9 @@ function App() {
             </header>
             <main className="app-main">
                 <p>{commonText.welcome}</p>
+                <SearchPage
+                    renderResults={() => <p>{searchText.resultsPlaceholder}</p>}
+                />
                 <section aria-labelledby="health-heading">
                     <h2 id="health-heading">{commonText.healthCheck}</h2>
                     {healthQuery.isPending && <p>{commonText.healthLoading}</p>}
