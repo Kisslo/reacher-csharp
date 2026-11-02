@@ -59,7 +59,7 @@ public sealed class WebsiteEndpointTests(CompanySearchFixture postgres)
         Assert.Equal(1500, body["remainingMonthlyQuota"]!.GetValue<int>());
         var candidate = Assert.Single(body["candidates"]!.AsArray());
         Assert.Equal("https://example.test/company", candidate!["url"]!.GetValue<string>());
-        Assert.Equal("\"Alpha\" Teststad", candidate["title"]!.GetValue<string>());
+        Assert.Equal("\"Alpha\" Teststad website", candidate["title"]!.GetValue<string>());
         Assert.Equal("low", candidate["confidence"]!.GetValue<string>());
         Assert.False(candidate["preselected"]!.GetValue<bool>());
     }
