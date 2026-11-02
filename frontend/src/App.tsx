@@ -4,7 +4,12 @@ import { fetchHealth } from './api/health';
 import { CompanyResults } from './features/companies/CompanyResults';
 import { SearchPage } from './features/search/SearchPage';
 import { searchKey } from './features/search/searchUrl';
+import {
+    FindWebsiteAction,
+    WebsiteSearchProvider,
+} from './features/website/FindWebsiteAction';
 import { commonText } from './texts/common';
+import { websiteText } from './texts/website';
 
 function App() {
     const healthQuery = useQuery({
@@ -22,10 +27,26 @@ function App() {
                 <SearchPage
                     renderResults={(search) => (
                         // A new search remounts the list, so it reads its view from the URL again.
-                        <CompanyResults
-                            key={searchKey(search)}
-                            search={search}
-                        />
+                        <WebsiteSearchProvider key={searchKey(search)}>
+                            <CompanyResults
+                                key={searchKey(search)}
+                                search={search}
+                                extraColumns={[
+                                    {
+                                        key: 'actions',
+                                        header: websiteText.column,
+                                        cell: (company) => (
+                                            <FindWebsiteAction
+                                                orgnr={company.orgnr}
+                                                onAnalyze={() => {
+                                                    // T2-09 will analyse this URL. Nothing is stored here.
+                                                }}
+                                            />
+                                        ),
+                                    },
+                                ]}
+                            />
+                        </WebsiteSearchProvider>
                     )}
                 />
                 <section aria-labelledby="health-heading">
