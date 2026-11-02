@@ -17,19 +17,23 @@ import {
 } from './companyView';
 import type { CompanyView } from './companyView';
 import { formatCount } from './format';
+import { analysisText } from '../analysis/analysisText';
 import { Pagination } from './Pagination';
 import './companies.css';
 
 type CompanyResultsProps = {
     search: SearchSelection;
     extraColumns?: CompanyColumn[];
+    scoreLookup?: (orgnr: string) => { reworkScore: number } | undefined;
 };
 
 export function CompanyResults({
     search,
     extraColumns = [],
+    scoreLookup,
 }: CompanyResultsProps) {
     const [view, setView] = useState(readCompanyViewFromUrl);
+    const [scoreOrder, setScoreOrder] = useState<'asc' | 'desc' | null>(null);
     const companies = useQuery(companiesQuery(search, view));
 
     function changeView(next: CompanyView) {
@@ -65,6 +69,17 @@ export function CompanyResults({
                     busy={companies.isPlaceholderData}
                     extraColumns={extraColumns}
                     onChange={changeView}
+                    scoreLookup={scoreLookup}
+                    scoreOrder={scoreOrder}
+                    onScoreSort={() =>
+                        setScoreOrder((order) =>
+                            order === null
+                                ? 'asc'
+                                : order === 'asc'
+                                  ? 'desc'
+                                  : 'asc',
+                        )
+                    }
                 />
             )}
         </div>
@@ -77,6 +92,9 @@ type CompanyListProps = {
     busy: boolean;
     extraColumns: CompanyColumn[];
     onChange: (view: CompanyView) => void;
+    scoreLookup?: (orgnr: string) => { reworkScore: number } | undefined;
+    scoreOrder: 'asc' | 'desc' | null;
+    onScoreSort: () => void;
 };
 
 function CompanyList({
@@ -85,6 +103,9 @@ function CompanyList({
     busy,
     extraColumns,
     onChange,
+    scoreLookup,
+    scoreOrder,
+    onScoreSort,
 }: CompanyListProps) {
     // .NET's OpenAPI types int32 as number | string, so convert before doing maths.
     const totalCount = Number(response.totalCount);
@@ -97,15 +118,43 @@ function CompanyList({
         return <p role="status">{companyText.empty}</p>;
     }
 
+    const sortedItems =
+        scoreLookup === undefined || scoreOrder === null
+            ? response.items
+            : [...response.items].sort((left, right) => {
+                  const leftScore = scoreLookup(left.orgnr)?.reworkScore;
+                  const rightScore = scoreLookup(right.orgnr)?.reworkScore;
+                  if (leftScore === undefined && rightScore === undefined) {
+                      return 0;
+                  }
+                  if (leftScore === undefined) {
+                      return 1;
+                  }
+                  if (rightScore === undefined) {
+                      return -1;
+                  }
+                  return scoreOrder === 'asc'
+                      ? leftScore - rightScore
+                      : rightScore - leftScore;
+              });
+
     return (
         <>
             <p role="status">{companyText.hits(formatCount(totalCount))}</p>
+            {scoreLookup !== undefined && (
+                <p className="score-sort-note">
+                    {analysisText.sortExplanation}
+                </p>
+            )}
             <CompanyTable
-                companies={response.items}
+                companies={sortedItems}
                 view={view}
                 busy={busy}
                 extraColumns={extraColumns}
                 onSort={(sort) => onChange(sortBy(view, sort))}
+                scoreLookup={scoreLookup}
+                scoreOrder={scoreOrder}
+                onScoreSort={onScoreSort}
             />
             <Pagination
                 page={view.page}

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import type { Company } from '../../api/companies';
+import { analysisText } from '../analysis/analysisText';
 import { companyText } from '../../texts/companies';
 import { employeeClassesQuery } from '../search/codeQueries';
 import type { CompanySort, CompanyView } from './companyView';
@@ -21,6 +22,9 @@ type CompanyTableProps = {
     onSort: (sort: CompanySort) => void;
     extraColumns: CompanyColumn[];
     busy: boolean;
+    scoreLookup?: (orgnr: string) => { reworkScore: number } | undefined;
+    scoreOrder?: 'asc' | 'desc' | null;
+    onScoreSort?: () => void;
 };
 
 export function CompanyTable({
@@ -29,6 +33,9 @@ export function CompanyTable({
     onSort,
     extraColumns,
     busy,
+    scoreLookup,
+    scoreOrder,
+    onScoreSort,
 }: CompanyTableProps) {
     const employeeClasses = useQuery(employeeClassesQuery());
     const employeeNames = useMemo(
@@ -86,6 +93,34 @@ export function CompanyTable({
                             {column.header}
                         </th>
                     ))}
+                    {scoreLookup !== undefined &&
+                        scoreOrder !== undefined &&
+                        onScoreSort !== undefined && (
+                            <th
+                                scope="col"
+                                className="numeric"
+                                aria-sort={
+                                    scoreOrder === null
+                                        ? 'none'
+                                        : scoreOrder === 'asc'
+                                          ? 'ascending'
+                                          : 'descending'
+                                }
+                            >
+                                <button
+                                    type="button"
+                                    className="sort-button"
+                                    onClick={onScoreSort}
+                                >
+                                    {analysisText.sortColumn}
+                                    {scoreOrder === null
+                                        ? ''
+                                        : scoreOrder === 'asc'
+                                          ? ' ▲'
+                                          : ' ▼'}
+                                </button>
+                            </th>
+                        )}
                 </tr>
             </thead>
             <tbody>
@@ -98,6 +133,8 @@ export function CompanyTable({
                             company.employeeClass
                         }
                         extraColumns={extraColumns}
+                        showScore={scoreLookup !== undefined}
+                        score={scoreLookup?.(company.orgnr)?.reworkScore}
                     />
                 ))}
             </tbody>
@@ -143,9 +180,17 @@ type CompanyRowProps = {
     company: Company;
     employees: string;
     extraColumns: CompanyColumn[];
+    showScore: boolean;
+    score?: number;
 };
 
-function CompanyRow({ company, employees, extraColumns }: CompanyRowProps) {
+function CompanyRow({
+    company,
+    employees,
+    extraColumns,
+    showScore,
+    score,
+}: CompanyRowProps) {
     const [expanded, setExpanded] = useState(false);
     const detailsId = useId();
     // Newest first. A missing figure stays missing, even if an older year has one,
@@ -196,10 +241,15 @@ function CompanyRow({ company, employees, extraColumns }: CompanyRowProps) {
                 {extraColumns.map((column) => (
                     <td key={column.key}>{column.cell(company)}</td>
                 ))}
+                {showScore && (
+                    <td className="numeric">
+                        {score === undefined ? companyText.missingValue : score}
+                    </td>
+                )}
             </tr>
             {expanded && (
                 <tr id={detailsId} className="details-row">
-                    <td colSpan={7 + extraColumns.length}>
+                    <td colSpan={7 + extraColumns.length + (showScore ? 1 : 0)}>
                         <Financials company={company} />
                     </td>
                 </tr>
