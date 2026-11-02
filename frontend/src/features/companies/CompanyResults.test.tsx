@@ -621,5 +621,42 @@ describe('CompanyResults', () => {
             ).toBeTruthy();
             expect(screen.getByText('Knapp för 5599000015')).toBeTruthy();
         });
+
+        it('sorts the current page by analysed score and leaves missing scores last', async () => {
+            stubApi();
+            const user = userEvent.setup();
+            const scores = new Map([['5599000015', { reworkScore: 80 }]]);
+
+            renderWithQuery(
+                <CompanyResults
+                    search={search}
+                    scoreLookup={(orgnr) => scores.get(orgnr)}
+                />,
+            );
+
+            await screen.findByRole('table');
+            expect(
+                screen.getByRole('columnheader', { name: /Behov/ }),
+            ).toBeTruthy();
+            expect(
+                screen.getByText(
+                    'Sortering på behov gäller bara företag du analyserat under den här sessionen',
+                ),
+            ).toBeTruthy();
+
+            const scoreHeader = screen.getByRole('button', { name: /Behov/ });
+            await user.click(scoreHeader);
+
+            const rows = screen
+                .getAllByRole('row')
+                .slice(1)
+                .map((row) => row.children[1]?.textContent);
+            expect(rows).toEqual(['Saxen & Kammen AB', 'Kamhuset AB']);
+            expect(
+                within(rowOf('Kamhuset AB')).getAllByText(
+                    companyText.missingValue,
+                ),
+            ).toHaveLength(4);
+        });
     });
 });

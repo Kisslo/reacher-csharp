@@ -1,0 +1,27 @@
+export const analysisText = {
+    title: 'Webbplatsanalys',
+    loading: 'Analyserar webbplatsen, det kan ta upp till en minut…',
+    close: 'Stäng',
+    score: 'Behov av ny webbplats',
+    scoreExplanation: 'Högre poäng betyder större behov av en ny webbplats.',
+    lighthouse: 'Lighthouse',
+    performance: 'Prestanda',
+    accessibility: 'Tillgänglighet',
+    bestPractices: 'Bästa praxis',
+    seo: 'SEO',
+    checks: 'Kontroller',
+    https: 'HTTPS',
+    viewport: 'Mobilanpassad',
+    generator: 'Plattform',
+    copyrightYear: 'Copyright-år',
+    responseTime: 'Svarstid',
+    yes: 'Ja',
+    no: 'Nej',
+    missing: 'Saknas',
+    milliseconds: (value: number) => `${value} ms`,
+    checksOnly:
+        'Lighthouse kunde inte hämtas. Poängen bygger därför bara på våra egna kontroller.',
+    sortColumn: 'Behov',
+    sortExplanation:
+        'Sortering på behov gäller bara företag du analyserat under den här sessionen',
+} as const;
