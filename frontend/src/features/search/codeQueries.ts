@@ -1,6 +1,11 @@
 import { queryOptions } from '@tanstack/react-query';
 
-import { fetchMunicipalities, fetchSni } from '../../api/codes';
+import {
+    fetchEmployeeClasses,
+    fetchMunicipalities,
+    fetchRevenueClasses,
+    fetchSni,
+} from '../../api/codes';
 
 // Code lists change rarely and the server caches them for 24 hours,
 // so one fetch per page load is enough.
@@ -8,6 +13,22 @@ export function municipalitiesQuery() {
     return queryOptions({
         queryKey: ['codes', 'municipalities'],
         queryFn: ({ signal }) => fetchMunicipalities(signal),
+        staleTime: Infinity,
+    });
+}
+
+export function employeeClassesQuery() {
+    return queryOptions({
+        queryKey: ['codes', 'employee-classes'],
+        queryFn: ({ signal }) => fetchEmployeeClasses(signal),
+        staleTime: Infinity,
+    });
+}
+
+export function revenueClassesQuery() {
+    return queryOptions({
+        queryKey: ['codes', 'revenue-classes'],
+        queryFn: ({ signal }) => fetchRevenueClasses(signal),
         staleTime: Infinity,
     });
 }
