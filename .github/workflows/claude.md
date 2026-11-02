@@ -80,9 +80,9 @@ A new decision gets the next free D number in `docs/decisions.md` through a PR. 
 | Background work | `BackgroundService` + `Channel<T>` in the API process, behind `IIngestQueue` |
 | HTTP clients | Typed `HttpClient` via `AddHttpClient`, retries via `Microsoft.Extensions.Http.Resilience` |
 | HTML parsing | AngleSharp |
-| Tests | xUnit, Testcontainers for Postgres, fake `HttpMessageHandler` for external APIs |
+| Tests | xUnit, Testcontainers for Postgres, fake `HttpMessageHandler` for external APIs. Frontend: Vitest, Testing Library, jsdom, and a fake `fetch` |
 | Frontend | React + Vite + TypeScript (strict), TanStack Query, `openapi-typescript`, ESLint + Prettier |
-| CI | GitHub Actions. Backend: locked restore, format check, build, test. Frontend: lint, typecheck, build |
+| CI | GitHub Actions. Backend: locked restore, format check, build, test. Frontend: lint, typecheck, test, build |
 
 Ask before adding a NuGet or npm package, a service or a language. Prefer what .NET or React already has.
 
@@ -155,6 +155,7 @@ The team file wins for team-internal matters only. It never overrides the hard r
 | J-06 | [#25](https://github.com/Kisslo/reacher-csharp/issues/25) | End-to-end test, demo and README | 48 | all | Todo |
 | J-07 | [#34](https://github.com/Kisslo/reacher-csharp/issues/34) | [BE] Fix flaky startup-validation test | 44 | – | Done (PR #35) |
 | J-08 | [#36](https://github.com/Kisslo/reacher-csharp/issues/36) | [BE] Pin the .NET SDK band and regenerate lock files on conflict | 44 | – | In progress |
+| J-09 | [#52](https://github.com/Kisslo/reacher-csharp/issues/52) | [FE] Frontend test runner | 46 | – | In progress |
 
 ## Plan
 | Week | Dates | Goal | Works at the end of the week |
