@@ -9,8 +9,9 @@ namespace Reacher.WebsiteAnalysis.Matching;
 public static partial class WebsiteQuery
 {
     /// <summary>
-    /// Returns <c>"{name}" {city}</c> after stripping <c>AB</c>, <c>Aktiebolag</c>,
-    /// and <c>(publ)</c>. The city is omitted when it is blank.
+    /// Returns <c>"{name}" {city} website</c> after stripping <c>AB</c>,
+    /// <c>Aktiebolag</c>, and <c>(publ)</c>. The city and website term are omitted
+    /// when the city is blank.
     /// </summary>
     public static string Build(string companyName, string? city)
     {
@@ -31,7 +32,7 @@ public static partial class WebsiteQuery
             return quoted;
         }
 
-        return $"{quoted} {city.Trim()}";
+        return $"{quoted} {city.Trim()} website";
     }
 
     [GeneratedRegex(

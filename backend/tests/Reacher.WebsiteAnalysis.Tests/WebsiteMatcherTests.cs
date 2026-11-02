@@ -7,11 +7,17 @@ namespace Reacher.WebsiteAnalysis.Tests;
 public sealed class WebsiteMatcherTests
 {
     [Theory]
-    [InlineData("Kvarnbyns Rörteknik AB", "Malmö", "\"Kvarnbyns Rörteknik\" Malmö")]
-    [InlineData("Example Aktiebolag (publ)", "Stockholm", "\"Example\" Stockholm")]
+    [InlineData(
+        "Kvarnbyns Rörteknik AB",
+        "Malmö",
+        "\"Kvarnbyns Rörteknik\" Malmö website")]
+    [InlineData("Example Aktiebolag (publ)", "Stockholm", "\"Example\" Stockholm website")]
     [InlineData("Exempel AKTIEBOLAG (PUBL)", null, "\"Exempel\"")]
     [InlineData("Bygg & Måleri AB", null, "\"Bygg & Måleri\"")]
-    [InlineData("Bygg   &   Måleri AB", "  Göteborg  ", "\"Bygg & Måleri\" Göteborg")]
+    [InlineData(
+        "Bygg   &   Måleri AB",
+        "  Göteborg  ",
+        "\"Bygg & Måleri\" Göteborg website")]
     [InlineData("ABBA AB", null, "\"ABBA\"")]
     [InlineData("Aktiebolaget Exempel AB", null, "\"Aktiebolaget Exempel\"")]
     public void Build_strips_the_legal_form_and_quotes_the_name(
