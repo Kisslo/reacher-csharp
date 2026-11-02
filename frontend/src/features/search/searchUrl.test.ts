@@ -25,7 +25,7 @@ describe('readSearchFromUrl', () => {
 
 describe('writeSearchToUrl', () => {
     it('writes sni and municipalities and keeps other parameters', () => {
-        setSearch('?page=2&municipality=9999');
+        setSearch('?revenueMin=1000&municipality=9999');
 
         writeSearchToUrl({
             sni: '96210',
@@ -35,6 +35,24 @@ describe('writeSearchToUrl', () => {
         const params = new URLSearchParams(window.location.search);
         expect(params.get('sni')).toBe('96210');
         expect(params.getAll('municipality')).toEqual(['0180', '1480']);
+        expect(params.get('revenueMin')).toBe('1000');
+    });
+
+    it('goes back to page 1 for a different search', () => {
+        setSearch('?sni=96210&municipality=0180&page=2');
+
+        writeSearchToUrl({ sni: '96220', municipalities: ['0180'] });
+
+        const params = new URLSearchParams(window.location.search);
+        expect(params.has('page')).toBe(false);
+    });
+
+    it('keeps the page for the same search, so a reload stays on it', () => {
+        setSearch('?sni=96210&municipality=0180&page=2');
+
+        writeSearchToUrl({ sni: '96210', municipalities: ['0180'] });
+
+        const params = new URLSearchParams(window.location.search);
         expect(params.get('page')).toBe('2');
     });
 });

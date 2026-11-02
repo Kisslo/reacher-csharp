@@ -33,5 +33,4 @@ export const searchText = {
             ? 'Hämtar årsredovisningar…'
             : `Hämtar årsredovisningar (${done} av ${total})…`,
     progressFailed: 'Hämtningen misslyckades',
-    resultsPlaceholder: 'Uppgifterna är hämtade. Företagslistan visas här.',
 } as const;

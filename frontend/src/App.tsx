@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { fetchHealth } from './api/health';
+import { CompanyResults } from './features/companies/CompanyResults';
 import { SearchPage } from './features/search/SearchPage';
+import { searchKey } from './features/search/searchUrl';
 import { commonText } from './texts/common';
-import { searchText } from './texts/search';
 
 function App() {
     const healthQuery = useQuery({
@@ -19,7 +20,13 @@ function App() {
             <main className="app-main">
                 <p>{commonText.welcome}</p>
                 <SearchPage
-                    renderResults={() => <p>{searchText.resultsPlaceholder}</p>}
+                    renderResults={(search) => (
+                        // A new search remounts the list, so it reads its view from the URL again.
+                        <CompanyResults
+                            key={searchKey(search)}
+                            search={search}
+                        />
+                    )}
                 />
                 <section aria-labelledby="health-heading">
                     <h2 id="health-heading">{commonText.healthCheck}</h2>
