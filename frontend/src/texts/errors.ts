@@ -1,6 +1,9 @@
 const errorMessages: Record<string, string> = {
     analysis_timeout: 'Analysen tog för lång tid. Försök igen.',
-    brave_quota_exceeded: 'Månadens gräns för webbplatssökningar är nådd.',
+    brave_quota_exceeded: 'Sökgränsen för månaden är nådd.',
+    brave_unavailable:
+        'Webbplatssökningen kan inte nås just nu. Försök igen senare.',
+    company_not_found: 'Företaget kunde inte hittas.',
     invalid_search:
         'Sökningen är inte giltig. Kontrollera SNI-kod och kommuner.',
     invalid_search_query:
