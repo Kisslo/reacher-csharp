@@ -176,6 +176,35 @@ export function sortBy(view: CompanyView, sort: CompanySort): CompanyView {
     return { ...view, sort, order, page: 1 };
 }
 
+/**
+ * Drops the column sort back to the default, which the URL and the request omit.
+ * The same view is returned when there is nothing to clear, so the caller can
+ * skip writing the URL again.
+ */
+export function clearCompanySort(view: CompanyView): CompanyView {
+    if (
+        view.sort === defaultSort &&
+        view.order === defaultOrder &&
+        view.page === 1
+    ) {
+        return view;
+    }
+
+    return { ...view, sort: defaultSort, order: defaultOrder, page: 1 };
+}
+
+/**
+ * Selects a column ascending on page 1, even when the view already has it.
+ * Leaving the score sort uses this: that column was not the active sort, so
+ * the click must not flip it.
+ */
+export function selectCompanySort(
+    view: CompanyView,
+    sort: CompanySort,
+): CompanyView {
+    return { ...view, sort, order: defaultOrder, page: 1 };
+}
+
 /** The same rules as CompanySearchQueryValidator. The server stays the authority. */
 export function validateFilters(filters: CompanyFilters): FilterErrors {
     const errors: FilterErrors = {};

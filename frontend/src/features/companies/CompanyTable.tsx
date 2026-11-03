@@ -37,6 +37,8 @@ export function CompanyTable({
     scoreOrder,
     onScoreSort,
 }: CompanyTableProps) {
+    // While Behov is the sort, no company column stays selected.
+    const companySortActive = scoreOrder !== 'asc' && scoreOrder !== 'desc';
     const employeeClasses = useQuery(employeeClassesQuery());
     const employeeNames = useMemo(
         () =>
@@ -59,6 +61,7 @@ export function CompanyTable({
                         label={companyText.columnCompany}
                         sort="name"
                         view={view}
+                        companySortActive={companySortActive}
                         onSort={onSort}
                     />
                     <th scope="col">{companyText.columnWorkplaces}</th>
@@ -66,12 +69,14 @@ export function CompanyTable({
                         label={companyText.columnEmployees}
                         sort="employeeClass"
                         view={view}
+                        companySortActive={companySortActive}
                         onSort={onSort}
                     />
                     <SortHeader
                         label={companyText.columnRevenue}
                         sort="revenue"
                         view={view}
+                        companySortActive={companySortActive}
                         onSort={onSort}
                         numeric
                     />
@@ -79,6 +84,7 @@ export function CompanyTable({
                         label={companyText.columnNetResult}
                         sort="netResult"
                         view={view}
+                        companySortActive={companySortActive}
                         onSort={onSort}
                         numeric
                     />
@@ -86,6 +92,7 @@ export function CompanyTable({
                         label={companyText.columnRegistered}
                         sort="registeredAt"
                         view={view}
+                        companySortActive={companySortActive}
                         onSort={onSort}
                     />
                     {extraColumns.map((column) => (
@@ -146,12 +153,20 @@ type SortHeaderProps = {
     label: string;
     sort: CompanySort;
     view: CompanyView;
+    companySortActive: boolean;
     onSort: (sort: CompanySort) => void;
     numeric?: boolean;
 };
 
-function SortHeader({ label, sort, view, onSort, numeric }: SortHeaderProps) {
-    const isActive = view.sort === sort;
+function SortHeader({
+    label,
+    sort,
+    view,
+    companySortActive,
+    onSort,
+    numeric,
+}: SortHeaderProps) {
+    const isActive = companySortActive && view.sort === sort;
     const ariaSort = view.order === 'asc' ? 'ascending' : 'descending';
 
     return (
