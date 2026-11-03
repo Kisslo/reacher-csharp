@@ -3,8 +3,10 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { companyText } from '../../texts/companies';
 import {
     appendCompanyView,
+    clearCompanySort,
     emptyFilters,
     readCompanyViewFromUrl,
+    selectCompanySort,
     sortBy,
     validateFilters,
     writeCompanyViewToUrl,
@@ -153,6 +155,36 @@ describe('sortBy', () => {
 
         expect(once.order).toBe('desc');
         expect(twice.order).toBe('asc');
+    });
+});
+
+describe('clearCompanySort', () => {
+    it('drops a column sort and returns to page 1', () => {
+        const view = clearCompanySort({
+            ...defaultView,
+            filters: { ...emptyFilters, hasFinancials: true },
+            sort: 'revenue',
+            order: 'desc',
+            page: 4,
+        });
+
+        expect(view.filters.hasFinancials).toBe(true);
+        expect(view).toMatchObject({ sort: 'name', order: 'asc', page: 1 });
+    });
+
+    it('returns the same view when the company sort is already the default', () => {
+        expect(clearCompanySort(defaultView)).toBe(defaultView);
+    });
+});
+
+describe('selectCompanySort', () => {
+    it('starts ascending even when that column is already selected', () => {
+        const view = selectCompanySort(
+            { ...defaultView, sort: 'name', order: 'desc', page: 3 },
+            'name',
+        );
+
+        expect(view).toMatchObject({ sort: 'name', order: 'asc', page: 1 });
     });
 });
 

@@ -11,11 +11,13 @@ import { CompanyFilters } from './CompanyFilters';
 import { CompanyTable } from './CompanyTable';
 import type { CompanyColumn } from './CompanyTable';
 import {
+    clearCompanySort,
     readCompanyViewFromUrl,
+    selectCompanySort,
     sortBy,
     writeCompanyViewToUrl,
 } from './companyView';
-import type { CompanyView } from './companyView';
+import type { CompanySort, CompanyView } from './companyView';
 import { formatCount } from './format';
 import { analysisText } from '../analysis/analysisText';
 import { Pagination } from './Pagination';
@@ -39,6 +41,27 @@ export function CompanyResults({
     function changeView(next: CompanyView) {
         setView(next);
         writeCompanyViewToUrl(next);
+    }
+
+    // Behov is a session sort, so it replaces the company sort instead of
+    // sitting on top of it. The direction stays in memory: a reload drops the
+    // scores, and the URL only remembers company sorts.
+    function activateScoreSort() {
+        setScoreOrder((order) => (order === 'asc' ? 'desc' : 'asc'));
+        const cleared = clearCompanySort(view);
+        if (cleared !== view) {
+            changeView(cleared);
+        }
+    }
+
+    function activateCompanySort(sort: CompanySort) {
+        const companySortActive = scoreOrder === null;
+        setScoreOrder(null);
+        changeView(
+            companySortActive
+                ? sortBy(view, sort)
+                : selectCompanySort(view, sort),
+        );
     }
 
     return (
@@ -69,17 +92,10 @@ export function CompanyResults({
                     busy={companies.isPlaceholderData}
                     extraColumns={extraColumns}
                     onChange={changeView}
+                    onSort={activateCompanySort}
                     scoreLookup={scoreLookup}
                     scoreOrder={scoreOrder}
-                    onScoreSort={() =>
-                        setScoreOrder((order) =>
-                            order === null
-                                ? 'asc'
-                                : order === 'asc'
-                                  ? 'desc'
-                                  : 'asc',
-                        )
-                    }
+                    onScoreSort={activateScoreSort}
                 />
             )}
         </div>
@@ -92,6 +108,7 @@ type CompanyListProps = {
     busy: boolean;
     extraColumns: CompanyColumn[];
     onChange: (view: CompanyView) => void;
+    onSort: (sort: CompanySort) => void;
     scoreLookup?: (orgnr: string) => { reworkScore: number } | undefined;
     scoreOrder: 'asc' | 'desc' | null;
     onScoreSort: () => void;
@@ -103,6 +120,7 @@ function CompanyList({
     busy,
     extraColumns,
     onChange,
+    onSort,
     scoreLookup,
     scoreOrder,
     onScoreSort,
@@ -151,7 +169,7 @@ function CompanyList({
                 view={view}
                 busy={busy}
                 extraColumns={extraColumns}
-                onSort={(sort) => onChange(sortBy(view, sort))}
+                onSort={onSort}
                 scoreLookup={scoreLookup}
                 scoreOrder={scoreOrder}
                 onScoreSort={onScoreSort}
