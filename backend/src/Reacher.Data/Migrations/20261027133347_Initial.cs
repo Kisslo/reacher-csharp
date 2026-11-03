@@ -9,6 +9,9 @@ namespace Reacher.Data.Migrations
     /// <inheritdoc />
     public partial class Initial : Migration
     {
+        private static readonly string[] WorkplaceMunicipalitySniColumns =
+            ["municipality", "sni"];
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -132,7 +135,7 @@ namespace Reacher.Data.Migrations
             migrationBuilder.CreateIndex(
                 name: "ix_workplace_municipality_sni",
                 table: "workplace",
-                columns: new[] { "municipality", "sni" });
+                columns: WorkplaceMunicipalitySniColumns);
 
             migrationBuilder.CreateIndex(
                 name: "ix_workplace_orgnr",

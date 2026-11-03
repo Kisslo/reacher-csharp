@@ -9,14 +9,16 @@ public static class BraveServiceCollectionExtensions
     public static IServiceCollection AddBraveSearch(
         this IServiceCollection services)
     {
-        services.AddHttpClient<BraveSearchClient>((serviceProvider, httpClient) =>
-        {
-            var options = serviceProvider
-                .GetRequiredService<IOptions<BraveOptions>>()
-                .Value;
+        services
+            .AddHttpClient<BraveSearchClient>((serviceProvider, httpClient) =>
+            {
+                var options = serviceProvider
+                    .GetRequiredService<IOptions<BraveOptions>>()
+                    .Value;
 
-            httpClient.BaseAddress = new Uri(options.BaseAddress);
-        });
+                httpClient.BaseAddress = new Uri(options.BaseAddress);
+            })
+            .RemoveAllLoggers();
 
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IBraveRequestRateLimiter, BraveRequestRateLimiter>();

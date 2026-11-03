@@ -1,0 +1,10 @@
+.git
+.github
+.vs
+**/bin
+**/obj
+frontend/node_modules
+frontend/dist
+*.user
+*.suo
+.env
