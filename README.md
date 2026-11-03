@@ -1,28 +1,88 @@
-# reacher-csharp
+# Reacher
 
-Internal tool: pick an industry (SNI code) and municipalities, get a filterable list of
-Swedish aktiebolag, find a company's website and see whether it needs rework.
-Decisions and contracts live in [docs/](docs/).
+Reacher is an internal tool for finding Swedish aktiebolag by industry and
+municipality. A user selects one exact five-digit SNI code and one or more
+municipalities, then can:
+
+- browse and filter eligible companies;
+- sort by employees, revenue, net result, or registration date;
+- find a company's website on request; and
+- analyse that website with Lighthouse and Reacher's own checks to estimate
+  whether it needs rework.
+
+The complete demo flow is documented in [docs/demo.md](docs/demo.md).
+The authoritative project decisions are in
+[docs/decisions.md](docs/decisions.md), and the database and HTTP contracts are
+in [docs/contracts.md](docs/contracts.md).
 
 ## Prerequisites
-- .NET SDK 10 (pinned in `global.json`)
+
+- .NET SDK 10, pinned in [global.json](global.json)
+- Node.js 24 or newer and npm
 - Docker Desktop, running
 
-## Run locally
-1. Start Postgres:
-   ```
-   docker compose up -d
-   ```
-2. Run the API. In Development it applies the database migrations at startup.
-   ```
-   dotnet run --project backend/src/Reacher.Api
-   ```
-3. Check that it works:
-   - http://localhost:5080/health returns `Healthy`
-   - http://localhost:5080/openapi/v1.json is the OpenAPI document (Development only)
+## Development setup
 
-Stop Postgres with `docker compose down` (data is kept) or `docker compose down -v`
-(deletes the database).
+Development runs the API and frontend on the host.
+
+Start only the development database:
+
+```powershell
+docker compose up -d postgres
+```
+
+Configure local secrets with `dotnet user-secrets` as described in
+[Configuration and secrets](#configuration-and-secrets), then run the API:
+
+```powershell
+dotnet run --project backend/src/Reacher.Api
+```
+
+In another terminal, run the frontend:
+
+```powershell
+Set-Location frontend
+npm ci
+npm run dev
+```
+
+Open the Vite URL shown in the terminal, normally http://localhost:5173.
+The development frontend proxies `/api` and `/health` to the API at
+http://localhost:5080. The API applies database migrations in Development.
+The Development-only OpenAPI document is available at
+http://localhost:5080/openapi/v1.json.
+
+Stop the database with `docker compose down` (data is kept), or
+`docker compose down -v` to delete the database volume.
+
+## Run the whole project with Docker Compose
+
+The Docker Compose deployment runs Postgres, the API, and the built frontend
+together. It uses `.env` to pass secrets into the API container; user-secrets
+from the host are not available inside Docker containers.
+
+```powershell
+Copy-Item .env.example .env
+# Add the real keys to .env before starting. Keep this file local.
+docker compose up -d --build
+```
+
+Open http://localhost:8080. Nginx serves the frontend and proxies `/api` and
+`/health` to the API. The API applies database migrations before it starts.
+
+The default Compose settings use the fake ingest coordinator and fake Brave
+client. For a real-data run, set these values in `.env`:
+
+```env
+Ingest__UseFakeCoordinator=false
+Brave__UseFake=false
+```
+
+Real ingest also requires the SCB and Bolagsverket credentials. Website
+analysis requires the PageSpeed key.
+
+Stop the deployment with `docker compose down`. Add `-v` only when you also
+want to delete the Postgres data volume.
 
 If port 5432 is taken, you probably have a local Postgres installed. Stop it, or change
 the port in both `docker-compose.yml` and `appsettings.Development.json`.
@@ -52,7 +112,7 @@ docker compose exec postgres psql -U reacher -d reacher -v ON_ERROR_STOP=1 -f /s
 If Postgres was started before the seed folder was mounted, run `docker compose up -d`
 once to recreate the container. The data is kept.
 
-## Configuration
+## Configuration and secrets
 Non-secret defaults live in `backend/src/Reacher.Api/appsettings.json`. Secrets are never
 in that file. Locally they live in user-secrets for the API project. `dotnet run` loads
 them when `ASPNETCORE_ENVIRONMENT` is Development, so no `.env` file is required.
@@ -82,12 +142,35 @@ dotnet user-secrets set "Brave:ApiKey" "..." --project backend/src/Reacher.Api
 dotnet user-secrets set "PageSpeed:ApiKey" "..." --project backend/src/Reacher.Api
 ```
 
-`dotnet user-secrets list --project backend/src/Reacher.Api` prints the values.
-Do not paste that output into an issue, a pull request, or a screenshot.
-A leaked key is rotated. Deleting the commit is not enough.
+Avoid printing configured secrets. If a key is leaked, rotate it immediately;
+deleting a commit is not enough.
 
-Docker Compose later reads the same settings from environment variables.
-The names are in `.env.example` (`Scb__ApiKey` and the rest). `__` maps to `:`.
+Docker Compose reads the same settings from `.env` environment variables. The
+names are listed in [.env.example](.env.example); `__` maps to `:` in ASP.NET
+Core configuration. Keep `.env` local. It is ignored by Git and must never be
+committed or pasted into an issue, pull request, log, or screenshot.
+
+## Brave and GDPR rules
+
+- Brave is called only after the user requests website candidates for one
+  company. It is never called in bulk or from a background job.
+- Brave results, user-pasted URLs, and analysis results are transient. They are
+  not stored in the database, logs, files, caches, browser storage, or URLs.
+- URLs are validated against SSRF before the server fetches them, including
+  after redirects.
+- Only eligible aktiebolag are stored. Personnummer-like SCB rows beginning
+  with `19` or `20` are discarded immediately.
+- API keys, tokens, personnummer, and Brave or user URLs are never logged.
+
+See [docs/decisions.md](docs/decisions.md) for the full decisions and
+[docs/contracts.md](docs/contracts.md) for the API and database contracts.
+
+## Next steps
+
+- Add login and authentication, as described by decision D1.
+- Deploy to a cloud environment, as described by decision D11.
+- Revisit support for additional legal forms after the MVP, as described by
+  decision D2.
 
 ## Before you push
 ```
