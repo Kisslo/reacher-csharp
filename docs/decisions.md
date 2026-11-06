@@ -18,3 +18,4 @@
 | D14 | **Financials:** the 3 latest fiscal years from Bolagsverket iXBRL, tags `se-gen-base:Nettoomsattning` → `revenue` and `se-gen-base:AretsResultat` → `net_result`. |
 | D15 | **One list row per company** (not per workplace). A company's matching workplaces are shown inside the row. |
 | D16 | **Never log API keys, tokens, personnummer, or any URL from Brave or from a user.** That is why URLs are always sent in POST bodies, never in query strings. |
+| D17 | **Temporary test deployment.** One container on Render's free tier (Frankfurt) with free Render Postgres, using real data, so the person in charge can test without cloning the repo. Protected by one shared password (HTTP Basic); the app refuses to start if the gate is enabled without one. Not a production setup: no user accounts or backups, and it is deleted after testing. D1 still applies to the app itself. |

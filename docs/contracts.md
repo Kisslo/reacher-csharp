@@ -13,7 +13,7 @@
 
 ## API contract
 
-All errors are `application/problem+json` with an extra `code` field (e.g. `sni_not_found`, `invalid_url`, `brave_quota_exceeded`, `analysis_timeout`). The frontend maps `code` to Swedish text.
+All errors are `application/problem+json` with an extra `code` field (e.g. `sni_not_found`, `invalid_url`, `brave_quota_exceeded`, `analysis_timeout`, `unauthenticated`). The frontend maps `code` to Swedish text. When the access gate is enabled (D17), every path except `/health` returns 401 `unauthenticated` without the shared password, and the browser shows its own password prompt.
 
 ### Health and codes
 
