@@ -1,3 +1,4 @@
+using Reacher.Api.AccessGate;
 using Reacher.Ingestion.Options;
 using Reacher.WebsiteAnalysis.Options;
 
@@ -10,6 +11,7 @@ public static class ReacherOptionsExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        Bind<AccessGateOptions>(services, configuration, AccessGateOptions.SectionName);
         Bind<ScbOptions>(services, configuration, ScbOptions.SectionName);
         Bind<BolagsverketOptions>(services, configuration, BolagsverketOptions.SectionName);
         Bind<IngestOptions>(services, configuration, IngestOptions.SectionName);
