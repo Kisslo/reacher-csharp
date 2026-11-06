@@ -1,7 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Reacher.Api;
+using Reacher.Api.AccessGate;
 using Reacher.Api.Codes;
 using Reacher.Api.Companies;
 using Reacher.Api.Searches;
@@ -78,6 +80,13 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+// First in the pipeline, so everything added later sits behind it. Reading Value
+// validates the options, so a bad password stops startup before migrations run.
+if (app.Services.GetRequiredService<IOptions<AccessGateOptions>>().Value.Enabled)
+{
+    app.UseMiddleware<AccessGateMiddleware>();
+}
 
 // Development only. Tests turn it off so they can start the API without a database.
 if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))

@@ -118,6 +118,9 @@ in that file. Locally they live in user-secrets for the API project. `dotnet run
 them when `ASPNETCORE_ENVIRONMENT` is Development, so no `.env` file is required.
 A missing required setting stops startup with the setting's name, never its value.
 
+- `AccessGate`: the shared password for the test deployment (D17). `Enabled` is true by default and false in
+  Development and Docker Compose. When enabled, `AccessGate:Password` (at least 32 characters) is required, or the
+  API will not start. Set it through an environment variable, never in `appsettings*.json`. `/health` stays open.
 - `Scb`: base URL, page size (max 5000) and requests per second (default 2, max 10). `Scb:ApiKey` via user-secrets.
 - `Bolagsverket`: token URL, API URL, scope, years, and the iXBRL tag map.
   Client id and secret via user-secrets.

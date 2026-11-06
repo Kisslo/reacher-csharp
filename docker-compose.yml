@@ -33,6 +33,7 @@ services:
       ASPNETCORE_HTTP_PORTS: 8080
       ConnectionStrings__Default: Host=postgres;Port=5432;Database=reacher;Username=reacher;Password=reacher
       Database__MigrateOnStartup: "true"
+      AccessGate__Enabled: ${AccessGate__Enabled:-false}
       Ingest__UseFakeCoordinator: ${Ingest__UseFakeCoordinator:-true}
       Brave__UseFake: ${Brave__UseFake:-true}
     depends_on:
