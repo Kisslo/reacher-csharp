@@ -84,18 +84,117 @@ analysis requires the PageSpeed key.
 Stop the deployment with `docker compose down`. Add `-v` only when you also
 want to delete the Postgres data volume.
 
-### Render deployment image
-
-Render can build [Dockerfile.render](Dockerfile.render) as a single web service.
-It publishes the API and the built frontend from the same ASP.NET Core process,
-so the service port should be `8080`. Set the required API keys and
-`AccessGate__Password` as Render environment variables; leave
-`AccessGate__Enabled` unset so the gate stays enabled by default. `/health` is
-the public health check, while the frontend, assets and `/api` require the
-shared password.
-
 If port 5432 is taken, you probably have a local Postgres installed. Stop it, or change
 the port in both `docker-compose.yml` and `appsettings.Development.json`.
+
+## Test deployment on Render (D17)
+
+A temporary deployment so the person in charge can try Reacher with real data without
+cloning the repo: one Docker web service and one Postgres database on Render's free
+tier, both in Frankfurt. It is not a production setup. There are no backups and no
+user accounts, and everything is deleted after testing.
+
+[Dockerfile.render](Dockerfile.render) builds one image in which ASP.NET Core serves both
+the API and the built frontend on port 8080. The access gate puts every path except
+`/health` behind one shared password.
+
+### Free-tier limits
+
+- 512 MB RAM, with no memory metrics on the free tier. An out-of-memory crash shows
+  up as a restart in the service's **Events** and **Logs**, and the running ingest job
+  ends `failed`. If that happens, set `Scb__PageSize` to `1000`.
+- The service sleeps after 15 minutes without requests, and the next request takes
+  about a minute. An ingest only keeps running while the search page is open, because
+  its progress polling counts as traffic. A job cut off by a restart is marked failed
+  on the next start. Run the search again.
+- Every deploy restarts the service and stops a running ingest, so auto-deploy is off.
+- The free database expires 30 days after it is created.
+
+### Create the database
+
+1. **New → Postgres**: region **Frankfurt (EU Central)**, PostgreSQL **17**, plan **Free**.
+2. When it is available, open **Connections**. You need the internal hostname, port,
+   database, username and password.
+
+### Create the web service
+
+1. **New → Web Service → Public Git Repository**: `https://github.com/Kisslo/reacher-csharp`.
+2. Language **Docker**, branch `main`, region **Frankfurt** (same as the database),
+   instance type **Free**.
+3. Root directory empty, Dockerfile path `./Dockerfile.render`, build context `.`.
+4. Under **Advanced**: health check path `/health`, auto-deploy **Off**.
+5. Add the environment variables below, then create the service.
+
+### Environment variables
+
+Set them on Render only. Type each key in yourself. Do not use **Add from .env** with a
+local Compose `.env`, because it turns the fakes on.
+
+| Name | Value |
+|---|---|
+| `PORT` | `8080` |
+| `ConnectionStrings__Default` | `Host=<internal hostname>;Port=5432;Database=<database>;Username=<username>;Password=<password>`. Npgsql does not accept Render's `postgresql://` URL. |
+| `Database__MigrateOnStartup` | `true` |
+| `AccessGate__Password` | At least 32 random characters, generated as below. Leave `AccessGate__Enabled` unset so the gate stays on. |
+| `Ingest__UseFakeCoordinator` | `false` |
+| `Brave__UseFake` | `false` |
+| `Scb__ApiKey`, `Bolagsverket__ClientId`, `Bolagsverket__ClientSecret`, `Brave__ApiKey`, `PageSpeed__ApiKey` | The real keys |
+
+Generate the password in PowerShell:
+
+```powershell
+$bytes = New-Object byte[] 32
+[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+[Convert]::ToBase64String($bytes)
+```
+
+Send testers the link and the password through different channels. The browser asks
+for a username and a password. The username is ignored.
+
+A wrong or misspelled value stops startup with the setting's name in the log, for
+example `Failed to convert configuration value ... at 'Brave:UseFake'`. Fix it in
+**Environment** and deploy again. The startup line `Cannot load library
+libgssapi_krb5.so.2` is harmless: Npgsql probes for Kerberos, and we use a password.
+
+### Check the deployment
+
+```powershell
+$url = "https://<service>.onrender.com"
+curl.exe -s -o NUL -w "%{http_code}\n" "$url/health"                    # 200
+curl.exe -s -o NUL -w "%{http_code}\n" "$url/"                          # 401
+curl.exe -s -o NUL -w "%{http_code}\n" "$url/api/codes/municipalities"  # 401
+```
+
+Then, in the browser, run one small real search, find and analyse one website, and
+check that:
+
+- the ingest job ends `succeeded`, with no restart in **Events** during the run;
+- the **Logs** tab has no hits for `://`, `Bearer`, `key`, `secret` or `password`,
+  apart from Kestrel's `Now listening on` line and Render's own deploy messages;
+- the database has no personnummer. Connect with the external hostname (psql asks
+  for the password):
+
+  ```powershell
+  docker run --rm -it postgres:17 psql "host=<external hostname> port=5432 dbname=<database> user=<username> sslmode=require"
+  ```
+
+  ```sql
+  SELECT count(*) FROM company WHERE left(orgnr, 2) IN ('19', '20') OR length(orgnr) <> 10;
+  ```
+
+  The result must be `0`.
+
+### Teardown
+
+When testing is over:
+
+1. Delete the web service (**Settings → Delete Web Service**).
+2. Delete the database (**Settings → Delete Database**).
+3. Rotate every key that was set on Render: SCB, the Bolagsverket client secret,
+   Brave and PageSpeed. Then update everyone's user-secrets and `.env`.
+4. Tell the testers the link is gone.
+
+The shared password needs no rotation, because it only existed on the deleted service.
 
 ## Database
 The schema is in EF Core migrations in `backend/src/Reacher.Data/Migrations`.
