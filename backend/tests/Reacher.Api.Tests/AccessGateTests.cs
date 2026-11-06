@@ -22,6 +22,7 @@ public sealed class AccessGateTests
     [InlineData("/openapi/v1.json")]
     [InlineData("/health/extra")]
     [InlineData("/")]
+    [InlineData("/app.js")]
     public async Task Request_without_password_gets_401_problem(string path)
     {
         using var factory = CreateGatedFactory(Password);
