@@ -10,12 +10,10 @@ import { useMutation } from '@tanstack/react-query';
 
 import { analyseWebsite, type WebsiteAnalysis } from '../../api/analysis';
 import { analysisText } from './analysisText';
+import { readLighthouse, type SessionScore } from './sessionScore';
 import './analysis.css';
 
-export type SessionScore = {
-    reworkScore: number;
-    analysedAt: string;
-};
+export type { SessionScore };
 
 type AnalysisState = {
     orgnr: string;
@@ -55,6 +53,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
                             next.set(orgnr, {
                                 reworkScore: Number(result.reworkScore),
                                 analysedAt: result.fetchedAt,
+                                lighthouse: readLighthouse(result.lighthouse),
                             });
                             return next;
                         });

@@ -23,5 +23,5 @@ export const analysisText = {
         'Lighthouse kunde inte hämtas. Poängen bygger därför bara på våra egna kontroller.',
     sortColumn: 'Behov',
     sortExplanation:
-        'Sortering på behov gäller bara företag du analyserat under den här sessionen',
+        'Sortering på behov, prestanda, tillgänglighet, bästa praxis och SEO gäller bara företag du analyserat under den här sessionen',
 } as const;

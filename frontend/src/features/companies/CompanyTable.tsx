@@ -3,7 +3,16 @@ import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import type { Company } from '../../api/companies';
-import { analysisText } from '../analysis/analysisText';
+import {
+    scoreColumnLabel,
+    scoreColumns,
+    scoreValue,
+} from '../analysis/sessionScore';
+import type {
+    ScoreColumn,
+    ScoreSort,
+    SessionScore,
+} from '../analysis/sessionScore';
 import { companyText } from '../../texts/companies';
 import { employeeClassesQuery } from '../search/codeQueries';
 import type { CompanySort, CompanyView } from './companyView';
@@ -22,9 +31,9 @@ type CompanyTableProps = {
     onSort: (sort: CompanySort) => void;
     extraColumns: CompanyColumn[];
     busy: boolean;
-    scoreLookup?: (orgnr: string) => { reworkScore: number } | undefined;
-    scoreOrder?: 'asc' | 'desc' | null;
-    onScoreSort?: () => void;
+    scoreLookup?: (orgnr: string) => SessionScore | undefined;
+    scoreSort?: ScoreSort | null;
+    onScoreSort?: (column: ScoreColumn) => void;
 };
 
 export function CompanyTable({
@@ -34,11 +43,11 @@ export function CompanyTable({
     extraColumns,
     busy,
     scoreLookup,
-    scoreOrder,
+    scoreSort,
     onScoreSort,
 }: CompanyTableProps) {
-    // While Behov is the sort, no company column stays selected.
-    const companySortActive = scoreOrder !== 'asc' && scoreOrder !== 'desc';
+    // While a score column is the sort, no company column stays selected.
+    const companySortActive = scoreSort === null || scoreSort === undefined;
     const employeeClasses = useQuery(employeeClassesQuery());
     const employeeNames = useMemo(
         () =>
@@ -101,33 +110,21 @@ export function CompanyTable({
                         </th>
                     ))}
                     {scoreLookup !== undefined &&
-                        scoreOrder !== undefined &&
-                        onScoreSort !== undefined && (
-                            <th
-                                scope="col"
-                                className="numeric"
-                                aria-sort={
-                                    scoreOrder === null
-                                        ? 'none'
-                                        : scoreOrder === 'asc'
-                                          ? 'ascending'
-                                          : 'descending'
+                        scoreSort !== undefined &&
+                        onScoreSort !== undefined &&
+                        scoreColumns.map((column) => (
+                            <ScoreHeader
+                                key={column}
+                                column={column}
+                                active={scoreSort?.column === column}
+                                order={
+                                    scoreSort?.column === column
+                                        ? scoreSort.order
+                                        : null
                                 }
-                            >
-                                <button
-                                    type="button"
-                                    className="sort-button"
-                                    onClick={onScoreSort}
-                                >
-                                    {analysisText.sortColumn}
-                                    {scoreOrder === null
-                                        ? ''
-                                        : scoreOrder === 'asc'
-                                          ? ' ▲'
-                                          : ' ▼'}
-                                </button>
-                            </th>
-                        )}
+                                onSort={onScoreSort}
+                            />
+                        ))}
                 </tr>
             </thead>
             <tbody>
@@ -141,7 +138,7 @@ export function CompanyTable({
                         }
                         extraColumns={extraColumns}
                         showScore={scoreLookup !== undefined}
-                        score={scoreLookup?.(company.orgnr)?.reworkScore}
+                        score={scoreLookup?.(company.orgnr)}
                     />
                 ))}
             </tbody>
@@ -157,6 +154,45 @@ type SortHeaderProps = {
     onSort: (sort: CompanySort) => void;
     numeric?: boolean;
 };
+
+function ScoreHeader({
+    column,
+    active,
+    order,
+    onSort,
+}: {
+    column: ScoreColumn;
+    active: boolean;
+    order: 'asc' | 'desc' | null;
+    onSort: (column: ScoreColumn) => void;
+}) {
+    return (
+        <th
+            scope="col"
+            className="numeric"
+            aria-sort={
+                active
+                    ? order === 'asc'
+                        ? 'ascending'
+                        : 'descending'
+                    : undefined
+            }
+        >
+            <button
+                type="button"
+                className="sort-button"
+                onClick={() => onSort(column)}
+            >
+                {scoreColumnLabel[column]}
+                {active && (
+                    <span aria-hidden="true">
+                        {order === 'asc' ? ' ▲' : ' ▼'}
+                    </span>
+                )}
+            </button>
+        </th>
+    );
+}
 
 function SortHeader({
     label,
@@ -196,7 +232,7 @@ type CompanyRowProps = {
     employees: string;
     extraColumns: CompanyColumn[];
     showScore: boolean;
-    score?: number;
+    score?: SessionScore;
 };
 
 function CompanyRow({
@@ -256,15 +292,27 @@ function CompanyRow({
                 {extraColumns.map((column) => (
                     <td key={column.key}>{column.cell(company)}</td>
                 ))}
-                {showScore && (
-                    <td className="numeric">
-                        {score === undefined ? companyText.missingValue : score}
-                    </td>
-                )}
+                {showScore &&
+                    scoreColumns.map((column) => {
+                        const value = scoreValue(score, column);
+                        return (
+                            <td key={column} className="numeric">
+                                {value === undefined
+                                    ? companyText.missingValue
+                                    : value}
+                            </td>
+                        );
+                    })}
             </tr>
             {expanded && (
                 <tr id={detailsId} className="details-row">
-                    <td colSpan={7 + extraColumns.length + (showScore ? 1 : 0)}>
+                    <td
+                        colSpan={
+                            7 +
+                            extraColumns.length +
+                            (showScore ? scoreColumns.length : 0)
+                        }
+                    >
                         <Financials company={company} />
                     </td>
                 </tr>
