@@ -20,13 +20,23 @@ import {
 import type { CompanySort, CompanyView } from './companyView';
 import { formatCount } from './format';
 import { analysisText } from '../analysis/analysisText';
+import {
+    compareScoreValues,
+    nextScoreSort,
+    scoreValue,
+} from '../analysis/sessionScore';
+import type {
+    ScoreColumn,
+    ScoreSort,
+    SessionScore,
+} from '../analysis/sessionScore';
 import { Pagination } from './Pagination';
 import './companies.css';
 
 type CompanyResultsProps = {
     search: SearchSelection;
     extraColumns?: CompanyColumn[];
-    scoreLookup?: (orgnr: string) => { reworkScore: number } | undefined;
+    scoreLookup?: (orgnr: string) => SessionScore | undefined;
 };
 
 export function CompanyResults({
@@ -35,7 +45,7 @@ export function CompanyResults({
     scoreLookup,
 }: CompanyResultsProps) {
     const [view, setView] = useState(readCompanyViewFromUrl);
-    const [scoreOrder, setScoreOrder] = useState<'asc' | 'desc' | null>(null);
+    const [scoreSort, setScoreSort] = useState<ScoreSort | null>(null);
     const companies = useQuery(companiesQuery(search, view));
 
     function changeView(next: CompanyView) {
@@ -43,11 +53,11 @@ export function CompanyResults({
         writeCompanyViewToUrl(next);
     }
 
-    // Behov is a session sort, so it replaces the company sort instead of
-    // sitting on top of it. The direction stays in memory: a reload drops the
-    // scores, and the URL only remembers company sorts.
-    function activateScoreSort() {
-        setScoreOrder((order) => (order === 'asc' ? 'desc' : 'asc'));
+    // The five score columns share one session sort, so it replaces the company
+    // sort instead of sitting on top of it. The column and direction stay in
+    // memory: a reload drops the scores, and the URL only remembers company sorts.
+    function activateScoreSort(column: ScoreColumn) {
+        setScoreSort((current) => nextScoreSort(current, column));
         const cleared = clearCompanySort(view);
         if (cleared !== view) {
             changeView(cleared);
@@ -55,8 +65,8 @@ export function CompanyResults({
     }
 
     function activateCompanySort(sort: CompanySort) {
-        const companySortActive = scoreOrder === null;
-        setScoreOrder(null);
+        const companySortActive = scoreSort === null;
+        setScoreSort(null);
         changeView(
             companySortActive
                 ? sortBy(view, sort)
@@ -94,7 +104,7 @@ export function CompanyResults({
                     onChange={changeView}
                     onSort={activateCompanySort}
                     scoreLookup={scoreLookup}
-                    scoreOrder={scoreOrder}
+                    scoreSort={scoreSort}
                     onScoreSort={activateScoreSort}
                 />
             )}
@@ -109,9 +119,9 @@ type CompanyListProps = {
     extraColumns: CompanyColumn[];
     onChange: (view: CompanyView) => void;
     onSort: (sort: CompanySort) => void;
-    scoreLookup?: (orgnr: string) => { reworkScore: number } | undefined;
-    scoreOrder: 'asc' | 'desc' | null;
-    onScoreSort: () => void;
+    scoreLookup?: (orgnr: string) => SessionScore | undefined;
+    scoreSort: ScoreSort | null;
+    onScoreSort: (column: ScoreColumn) => void;
 };
 
 function CompanyList({
@@ -122,7 +132,7 @@ function CompanyList({
     onChange,
     onSort,
     scoreLookup,
-    scoreOrder,
+    scoreSort,
     onScoreSort,
 }: CompanyListProps) {
     // .NET's OpenAPI types int32 as number | string, so convert before doing maths.
@@ -137,24 +147,15 @@ function CompanyList({
     }
 
     const sortedItems =
-        scoreLookup === undefined || scoreOrder === null
+        scoreLookup === undefined || scoreSort === null
             ? response.items
-            : [...response.items].sort((left, right) => {
-                  const leftScore = scoreLookup(left.orgnr)?.reworkScore;
-                  const rightScore = scoreLookup(right.orgnr)?.reworkScore;
-                  if (leftScore === undefined && rightScore === undefined) {
-                      return 0;
-                  }
-                  if (leftScore === undefined) {
-                      return 1;
-                  }
-                  if (rightScore === undefined) {
-                      return -1;
-                  }
-                  return scoreOrder === 'asc'
-                      ? leftScore - rightScore
-                      : rightScore - leftScore;
-              });
+            : [...response.items].sort((left, right) =>
+                  compareScoreValues(
+                      scoreValue(scoreLookup(left.orgnr), scoreSort.column),
+                      scoreValue(scoreLookup(right.orgnr), scoreSort.column),
+                      scoreSort.order,
+                  ),
+              );
 
     return (
         <>
@@ -171,7 +172,7 @@ function CompanyList({
                 extraColumns={extraColumns}
                 onSort={onSort}
                 scoreLookup={scoreLookup}
-                scoreOrder={scoreOrder}
+                scoreSort={scoreSort}
                 onScoreSort={onScoreSort}
             />
             <Pagination

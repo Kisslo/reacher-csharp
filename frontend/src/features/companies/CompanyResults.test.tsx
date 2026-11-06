@@ -8,6 +8,7 @@ import { commonText } from '../../texts/common';
 import { companyText } from '../../texts/companies';
 import { renderWithQuery } from '../../test/render';
 import { analysisText } from '../analysis/analysisText';
+import type { SessionScore } from '../analysis/sessionScore';
 import { CompanyResults } from './CompanyResults';
 import { formatAmount as format } from './format';
 
@@ -125,6 +126,30 @@ function rowOf(name: string): HTMLElement {
         throw new Error(`No row for ${name}.`);
     }
     return row;
+}
+
+function analysed(
+    reworkScore: number,
+    lighthouse: SessionScore['lighthouse'],
+): SessionScore {
+    return {
+        reworkScore,
+        analysedAt: '2026-11-02T14:00:00Z',
+        lighthouse,
+    };
+}
+
+/** The five score cells sit at the end of the row: Behov, then Lighthouse. */
+function scoreCells(name: string): string[] {
+    return [...rowOf(name).children]
+        .slice(-5)
+        .map((cell) => cell.textContent ?? '');
+}
+
+function headersWithSort(): HTMLElement[] {
+    return screen
+        .getAllByRole('columnheader')
+        .filter((header) => header.hasAttribute('aria-sort'));
 }
 
 describe('CompanyResults', () => {
@@ -633,7 +658,17 @@ describe('CompanyResults', () => {
         it('sorts the current page by analysed score and leaves missing scores last', async () => {
             stubApi();
             const user = userEvent.setup();
-            const scores = new Map([['5599000015', { reworkScore: 80 }]]);
+            const scores = new Map([
+                [
+                    '5599000015',
+                    analysed(80, {
+                        performance: 61,
+                        accessibility: 82,
+                        bestPractices: 74,
+                        seo: 90,
+                    }),
+                ],
+            ]);
 
             renderWithQuery(
                 <CompanyResults
@@ -646,11 +681,15 @@ describe('CompanyResults', () => {
             expect(
                 screen.getByRole('columnheader', { name: /Behov/ }),
             ).toBeTruthy();
-            expect(
-                screen.getByText(
-                    'Sortering på behov gäller bara företag du analyserat under den här sessionen',
-                ),
-            ).toBeTruthy();
+            expect(screen.getByText(analysisText.sortExplanation)).toBeTruthy();
+            for (const name of [
+                analysisText.performance,
+                analysisText.accessibility,
+                analysisText.bestPractices,
+                analysisText.seo,
+            ]) {
+                expect(screen.getByRole('columnheader', { name })).toBeTruthy();
+            }
 
             const scoreHeader = screen.getByRole('button', { name: /Behov/ });
             await user.click(scoreHeader);
@@ -663,7 +702,7 @@ describe('CompanyResults', () => {
                 within(rowOf('Kamhuset AB')).getAllByText(
                     companyText.missingValue,
                 ),
-            ).toHaveLength(4);
+            ).toHaveLength(8);
         });
 
         it('replaces the company sort with Behov, and a column turns Behov off', async () => {
@@ -671,8 +710,8 @@ describe('CompanyResults', () => {
             const user = userEvent.setup();
             // Opposite of the API order, so a leftover company sort cannot pass.
             const scores = new Map([
-                ['5599000015', { reworkScore: 80 }],
-                ['5599000080', { reworkScore: 20 }],
+                ['5599000015', analysed(80, null)],
+                ['5599000080', analysed(20, null)],
             ]);
 
             renderWithQuery(
@@ -737,7 +776,7 @@ describe('CompanyResults', () => {
                 }),
             );
 
-            expect(scoreHeader().getAttribute('aria-sort')).toBe('none');
+            expect(scoreHeader().getAttribute('aria-sort')).toBeNull();
             expect(
                 screen
                     .getByRole('columnheader', {
@@ -757,11 +796,226 @@ describe('CompanyResults', () => {
                 expect(lastOf(requests).get('sort')).toBe('revenue');
             });
             expect(lastOf(requests).has('order')).toBe(false);
-            expect(scoreHeader().getAttribute('aria-sort')).toBe('none');
+            expect(scoreHeader().getAttribute('aria-sort')).toBeNull();
             expect(revenueHeader().getAttribute('aria-sort')).toBe('ascending');
             expect(companyNames()).toEqual([
                 'Saxen & Kammen AB',
                 'Kamhuset AB',
+            ]);
+        });
+
+        it('sorts each Lighthouse column and keeps a missing score last', async () => {
+            const tredje = {
+                ...kamhuset,
+                orgnr: '5599000031',
+                name: 'Tredje AB',
+                registeredAt: '2020-01-01',
+                employeeClass: '2',
+                financials: [
+                    {
+                        periodEnd: '2025-12-31',
+                        revenue: 1000,
+                        netResult: 100,
+                    },
+                ],
+            } satisfies Company;
+            const requests = stubApi(() =>
+                Response.json(
+                    page({
+                        items: [saxen, kamhuset, tredje],
+                        totalCount: 3,
+                    }),
+                ),
+            );
+            const user = userEvent.setup();
+            const scores = new Map<string, SessionScore>([
+                [
+                    saxen.orgnr,
+                    analysed(30, {
+                        performance: 10,
+                        accessibility: 20,
+                        bestPractices: 40,
+                        seo: 80,
+                    }),
+                ],
+                [
+                    kamhuset.orgnr,
+                    analysed(60, {
+                        performance: 80,
+                        accessibility: 90,
+                        bestPractices: 70,
+                        seo: 10,
+                    }),
+                ],
+                [tredje.orgnr, analysed(90, null)],
+            ]);
+
+            renderWithQuery(
+                <CompanyResults
+                    search={search}
+                    scoreLookup={(orgnr) => scores.get(orgnr)}
+                />,
+            );
+
+            await screen.findByRole('table');
+            expect(scoreCells('Saxen & Kammen AB')).toEqual([
+                '30',
+                '10',
+                '20',
+                '40',
+                '80',
+            ]);
+            expect(scoreCells('Tredje AB')).toEqual([
+                '90',
+                companyText.missingValue,
+                companyText.missingValue,
+                companyText.missingValue,
+                companyText.missingValue,
+            ]);
+
+            await user.click(
+                screen.getByRole('button', {
+                    name: companyText.showDetails('Saxen & Kammen AB'),
+                }),
+            );
+            expect(
+                screen
+                    .getByRole('table', {
+                        name: companyText.financialsLabel('Saxen & Kammen AB'),
+                    })
+                    .closest('td')
+                    ?.getAttribute('colspan'),
+            ).toBe('12');
+            await user.click(
+                screen.getByRole('button', {
+                    name: companyText.hideDetails('Saxen & Kammen AB'),
+                }),
+            );
+
+            const column = (name: string) =>
+                screen.getByRole('columnheader', { name });
+
+            await user.click(
+                screen.getByRole('button', {
+                    name: analysisText.performance,
+                }),
+            );
+            expect(companyNames()).toEqual([
+                'Saxen & Kammen AB',
+                'Kamhuset AB',
+                'Tredje AB',
+            ]);
+            expect(headersWithSort()).toEqual([
+                column(analysisText.performance),
+            ]);
+            expect(
+                column(analysisText.performance).getAttribute('aria-sort'),
+            ).toBe('ascending');
+
+            await user.click(
+                screen.getByRole('button', {
+                    name: analysisText.performance,
+                }),
+            );
+            expect(companyNames()).toEqual([
+                'Kamhuset AB',
+                'Saxen & Kammen AB',
+                'Tredje AB',
+            ]);
+            expect(
+                column(analysisText.performance).getAttribute('aria-sort'),
+            ).toBe('descending');
+
+            await user.click(
+                screen.getByRole('button', {
+                    name: analysisText.accessibility,
+                }),
+            );
+            expect(companyNames()).toEqual([
+                'Saxen & Kammen AB',
+                'Kamhuset AB',
+                'Tredje AB',
+            ]);
+            expect(headersWithSort()).toEqual([
+                column(analysisText.accessibility),
+            ]);
+            expect(
+                column(analysisText.accessibility).getAttribute('aria-sort'),
+            ).toBe('ascending');
+            expect(
+                column(analysisText.performance).getAttribute('aria-sort'),
+            ).toBeNull();
+
+            await user.click(
+                screen.getByRole('button', {
+                    name: analysisText.bestPractices,
+                }),
+            );
+            expect(companyNames()).toEqual([
+                'Saxen & Kammen AB',
+                'Kamhuset AB',
+                'Tredje AB',
+            ]);
+            expect(
+                column(analysisText.bestPractices).getAttribute('aria-sort'),
+            ).toBe('ascending');
+
+            await user.click(
+                screen.getByRole('button', { name: analysisText.seo }),
+            );
+            expect(companyNames()).toEqual([
+                'Kamhuset AB',
+                'Saxen & Kammen AB',
+                'Tredje AB',
+            ]);
+            expect(column(analysisText.seo).getAttribute('aria-sort')).toBe(
+                'ascending',
+            );
+            expect(window.location.search).not.toContain('seo');
+            expect(window.location.search).not.toContain('https');
+
+            await user.click(
+                screen.getByRole('button', {
+                    name: new RegExp(`^${companyText.columnCompany}`),
+                }),
+            );
+            expect(
+                column(analysisText.seo).getAttribute('aria-sort'),
+            ).toBeNull();
+            expect(headersWithSort()).toEqual([
+                column(companyText.columnCompany),
+            ]);
+            expect(companyNames()).toEqual([
+                'Saxen & Kammen AB',
+                'Kamhuset AB',
+                'Tredje AB',
+            ]);
+
+            const revenue = new RegExp(companyText.columnRevenue);
+            await user.click(screen.getByRole('button', { name: revenue }));
+            await user.click(screen.getByRole('button', { name: revenue }));
+            await waitFor(() => {
+                expect(lastOf(requests).get('order')).toBe('desc');
+            });
+
+            await user.click(
+                screen.getByRole('button', { name: analysisText.seo }),
+            );
+            await waitFor(() => {
+                expect(lastOf(requests).has('sort')).toBe(false);
+            });
+            expect(lastOf(requests).has('order')).toBe(false);
+            expect(window.location.search).not.toContain('sort=');
+            expect(
+                screen
+                    .getByRole('columnheader', { name: revenue })
+                    .getAttribute('aria-sort'),
+            ).toBeNull();
+            expect(headersWithSort()).toEqual([column(analysisText.seo)]);
+            expect(companyNames()).toEqual([
+                'Kamhuset AB',
+                'Saxen & Kammen AB',
+                'Tredje AB',
             ]);
         });
     });
