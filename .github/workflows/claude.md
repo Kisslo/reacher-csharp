@@ -178,4 +178,4 @@ You don't remember earlier conversations. At the end of a session, when asked, w
 - **PageSpeed Insights key:** needed for T2-05. Confirm someone has created one in Google Cloud.
 - **Brave plan limits:** confirm requests per second and per month when the key is set up. `Brave:MonthlyCap` stays below the plan's limit.
 - **Bolagsverket status (`bolStat`, konkurs/likvidation):** carried over from reacher. Proposal: no rule in the MVP, since `ftgStat` already catches inactive companies.
-- **After the MVP (D1, D11):** login and cloud hosting are out of scope until 27 Nov. Note requirements here when they come up.
+- **After the MVP (D1, D11):** user login and production hosting are out of scope until 27 Nov. The temporary password-protected test deployment (D17) is the only exception. Note requirements here when they come up.
