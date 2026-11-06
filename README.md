@@ -84,6 +84,16 @@ analysis requires the PageSpeed key.
 Stop the deployment with `docker compose down`. Add `-v` only when you also
 want to delete the Postgres data volume.
 
+### Render deployment image
+
+Render can build [Dockerfile.render](Dockerfile.render) as a single web service.
+It publishes the API and the built frontend from the same ASP.NET Core process,
+so the service port should be `8080`. Set the required API keys and
+`AccessGate__Password` as Render environment variables; leave
+`AccessGate__Enabled` unset so the gate stays enabled by default. `/health` is
+the public health check, while the frontend, assets and `/api` require the
+shared password.
+
 If port 5432 is taken, you probably have a local Postgres installed. Stop it, or change
 the port in both `docker-compose.yml` and `appsettings.Development.json`.
 

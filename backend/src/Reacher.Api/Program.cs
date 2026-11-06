@@ -88,6 +88,9 @@ if (app.Services.GetRequiredService<IOptions<AccessGateOptions>>().Value.Enabled
     app.UseMiddleware<AccessGateMiddleware>();
 }
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 // Development only. Tests turn it off so they can start the API without a database.
 if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 {
@@ -106,6 +109,7 @@ app.MapCodeEndpoints();
 app.MapCompanyEndpoints();
 app.MapSearchEndpoints();
 app.MapWebsiteEndpoints();
-
+app.MapFallback("/api/{*path}", () => Results.NotFound());
+app.MapFallbackToFile("{*path:nonfile}", "index.html");
 
 app.Run();

@@ -19,7 +19,9 @@ internal static class ReacherApiFactory
         "Host=127.0.0.1;Port=1;Database=x;Username=x;Password=x;Timeout=2";
 
     /// <summary>Runs the real Program.cs in memory against the given database.</summary>
-    public static WebApplicationFactory<Program> Create(string connectionString)
+    public static WebApplicationFactory<Program> Create(
+        string connectionString,
+        string? webRootPath = null)
     {
         var settings = new Dictionary<string, string?>
         {
@@ -39,6 +41,11 @@ internal static class ReacherApiFactory
         return new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Development");
+            if (webRootPath is not null)
+            {
+                builder.UseWebRoot(webRootPath);
+            }
+
             foreach (var (key, value) in settings)
             {
                 builder.UseSetting(key, value);
