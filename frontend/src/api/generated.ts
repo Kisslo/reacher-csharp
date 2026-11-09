@@ -24,6 +24,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/companies/{orgnr}/outreach": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update company outreach state */
+        put: operations["UpdateCompanyOutreach"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/searches": {
         parameters: {
             query?: never;
@@ -209,6 +226,10 @@ export interface components {
             revenueClassYear: number | string;
             /** Format: date */
             registeredAt: null | string;
+            /** Format: date-time */
+            calledAt: null | string;
+            willing: null | boolean;
+            note: null | string;
             workplaces: components["schemas"]["WorkplaceListItem"][];
             financials: components["schemas"]["FinancialListItem"][];
         };
@@ -272,6 +293,18 @@ export interface components {
             bestPractices: number | string;
             /** Format: int32 */
             seo: number | string;
+        };
+        OutreachProblem: {
+            type: string;
+            title: string;
+            /** Format: int32 */
+            status: number | string;
+            code: string;
+        };
+        OutreachRequest: {
+            called: boolean;
+            willing: null | boolean;
+            note: null | string;
         };
         SearchFieldError: {
             field: string;
@@ -364,6 +397,8 @@ export interface operations {
                 NetResultMin?: string;
                 NetResultMax?: string;
                 HasFinancials?: string;
+                Called?: string;
+                Willing?: string;
                 Sort?: string;
                 Order?: string;
                 Page?: string;
@@ -391,6 +426,48 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["CompanySearchProblem"];
+                };
+            };
+        };
+    };
+    UpdateCompanyOutreach: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                orgnr: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OutreachRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OutreachProblem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["OutreachProblem"];
                 };
             };
         };

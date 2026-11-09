@@ -78,7 +78,7 @@ Folder paths are a suggestion until J-02 lands. Update the table if they change.
 T2-05 doesn't depend on Brave, so it can start as soon as J-03 is merged, in parallel with T2-03.
 
 ## Team status
-*2026-11-09:* All Team 2 tickets T2-01–T2-11 are complete. The Team 2 API portion of J-15 is implemented and tested; the frontend follow-up is J-16 after review.
+*2026-11-09:* All Team 2 tickets T2-01–T2-11 are complete. J-16 adds Kontaktad, Samarbete, the note on the expanded row, and the called and willingness filters. A failed save keeps the previous note and both markers.
 
 ## Team 2 open questions
 - **Brave plan:** confirm the limits when the key is set up and set `Brave:MonthlyCap` below them.

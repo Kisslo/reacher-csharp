@@ -39,7 +39,7 @@ describe('readCompanyViewFromUrl', () => {
                 '&registeredFrom=2015-01-01&registeredTo=2024-12-31' +
                 '&revenueMin=100000&revenueMax=900000' +
                 '&netResultMin=-5000&netResultMax=5000' +
-                '&hasFinancials=true&sort=revenue&order=desc&page=3',
+                '&hasFinancials=true&called=true&willing=false&sort=revenue&order=desc&page=3',
         );
 
         expect(readCompanyViewFromUrl()).toEqual({
@@ -53,6 +53,8 @@ describe('readCompanyViewFromUrl', () => {
                 netResultMin: '-5000',
                 netResultMax: '5000',
                 hasFinancials: true,
+                called: 'true',
+                willing: 'false',
             },
             sort: 'revenue',
             order: 'desc',
@@ -63,7 +65,7 @@ describe('readCompanyViewFromUrl', () => {
     it('ignores values the API would reject', () => {
         setSearch(
             '?sort=hacked&order=sideways&page=0&revenueMin=abc' +
-                '&registeredFrom=yesterday&hasFinancials=maybe',
+                '&registeredFrom=yesterday&hasFinancials=maybe&called=maybe&willing=yes',
         );
 
         expect(readCompanyViewFromUrl()).toEqual(defaultView);
@@ -100,6 +102,19 @@ describe('appendCompanyView', () => {
 
         expect(params.get('netResultMin')).toBe('0');
     });
+
+    it('sends called and willingness, and never a note', () => {
+        const params = new URLSearchParams();
+
+        appendCompanyView(params, {
+            ...defaultView,
+            filters: { ...emptyFilters, called: 'true', willing: 'false' },
+        });
+
+        expect(params.get('called')).toBe('true');
+        expect(params.get('willing')).toBe('false');
+        expect(params.has('note')).toBe(false);
+    });
 });
 
 describe('writeCompanyViewToUrl', () => {
@@ -123,6 +138,8 @@ describe('writeCompanyViewToUrl', () => {
                 employeeClasses: ['2', '3'],
                 netResultMin: '-100',
                 hasFinancials: true,
+                called: 'false',
+                willing: 'true',
             },
             sort: 'netResult',
             order: 'desc',

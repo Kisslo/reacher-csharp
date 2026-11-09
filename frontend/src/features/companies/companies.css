@@ -61,6 +61,7 @@
 
 .company-table {
     width: 100%;
+    font-size: 0.875rem;
     background: #ffffff;
     border-collapse: collapse;
 }
@@ -78,7 +79,7 @@
 
 .company-table th,
 .company-table td {
-    padding: 0.5rem;
+    padding: 0.35rem 0.3rem;
     overflow-wrap: anywhere;
     text-align: left;
     vertical-align: top;
@@ -101,7 +102,8 @@
     font: inherit;
     font-weight: 600;
     color: inherit;
-    white-space: nowrap;
+    text-align: inherit;
+    white-space: normal;
     background: none;
     border: none;
     cursor: pointer;
@@ -159,4 +161,73 @@
     margin: 0;
     color: #4a5568;
     font-size: 0.875rem;
+}
+
+.filter-select {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.filter-select label {
+    font-weight: 600;
+}
+
+.filter-select select,
+.outreach-willing,
+.outreach-note textarea {
+    font: inherit;
+    border: 1px solid #8a94a6;
+    border-radius: 0.375rem;
+    background: #ffffff;
+}
+
+.filter-select select,
+.outreach-willing {
+    padding: 0.35rem 0.4rem;
+}
+
+.company-table .outreach {
+    overflow-wrap: normal;
+    text-align: center;
+}
+
+.company-table th.outreach {
+    white-space: nowrap;
+}
+
+.outreach-called {
+    width: 1rem;
+    height: 1rem;
+}
+
+.outreach-willing {
+    width: 6.25rem;
+    max-width: 100%;
+}
+
+.outreach-note {
+    display: grid;
+    gap: 0.35rem;
+    max-width: 32rem;
+    margin-bottom: 1rem;
+}
+
+.outreach-note label {
+    font-weight: 600;
+}
+
+.outreach-note textarea {
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.5rem 0.75rem;
+    resize: vertical;
+}
+
+.outreach-note button {
+    justify-self: start;
+}
+
+.outreach-error p {
+    margin: 0;
+    color: #b42318;
 }
