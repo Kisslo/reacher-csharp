@@ -7,6 +7,9 @@ WITH company_values AS (
         c.revenue_class,
         c.revenue_class_year,
         c.registered_at,
+        outreach.called_at,
+        outreach.willing,
+        outreach.note,
         latest.period_end AS latest_period_end,
         latest.revenue AS latest_revenue,
         latest.net_result AS latest_net_result
@@ -22,6 +25,8 @@ WITH company_values AS (
         ORDER BY f.period_end DESC
         LIMIT 1
     ) AS latest ON TRUE
+    LEFT JOIN company_outreach AS outreach
+        ON outreach.orgnr = c.orgnr
     WHERE EXISTS (
         SELECT 1
         FROM workplace AS matching_workplace
@@ -57,6 +62,9 @@ filtered AS (
       AND (@revenue_max IS NULL OR latest_revenue <= @revenue_max)
       AND (@net_result_min IS NULL OR latest_net_result >= @net_result_min)
       AND (@net_result_max IS NULL OR latest_net_result <= @net_result_max)
+      AND (@called IS NULL OR (@called AND called_at IS NOT NULL)
+          OR (NOT @called AND called_at IS NULL))
+      AND (@willing IS NULL OR willing = @willing)
 ),
 ordered AS (
     SELECT
@@ -127,6 +135,9 @@ response AS (
                         'revenueClass', p.revenue_class,
                         'revenueClassYear', p.revenue_class_year,
                         'registeredAt', p.registered_at,
+                        'calledAt', p.called_at,
+                        'willing', p.willing,
+                        'note', p.note,
                         'workplaces', (
                             SELECT COALESCE(jsonb_agg(jsonb_build_object(
                                 'name', w.name,

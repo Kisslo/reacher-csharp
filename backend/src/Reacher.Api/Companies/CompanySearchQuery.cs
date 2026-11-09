@@ -25,6 +25,10 @@ public sealed class CompanySearchQuery
 
     public string? HasFinancials { get; set; }
 
+    public string? Called { get; set; }
+
+    public string? Willing { get; set; }
+
     public string? Sort { get; set; }
 
     public string? Order { get; set; }

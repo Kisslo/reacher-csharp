@@ -101,6 +101,35 @@ namespace Reacher.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Reacher.Data.Entities.CompanyOutreach", b =>
+                {
+                    b.Property<string>("Orgnr")
+                        .HasColumnType("text")
+                        .HasColumnName("orgnr");
+
+                    b.Property<DateTimeOffset?>("CalledAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("called_at");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("note");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<bool?>("Willing")
+                        .HasColumnType("boolean")
+                        .HasColumnName("willing");
+
+                    b.HasKey("Orgnr")
+                        .HasName("pk_company_outreach");
+
+                    b.ToTable("company_outreach", (string)null);
+                });
+
             modelBuilder.Entity("Reacher.Data.Entities.Coverage", b =>
                 {
                     b.Property<string>("Sni")
@@ -276,6 +305,18 @@ namespace Reacher.Data.Migrations
                     b.ToTable("workplace", (string)null);
                 });
 
+            modelBuilder.Entity("Reacher.Data.Entities.CompanyOutreach", b =>
+                {
+                    b.HasOne("Reacher.Data.Entities.Company", "Company")
+                        .WithOne("Outreach")
+                        .HasForeignKey("Reacher.Data.Entities.CompanyOutreach", "Orgnr")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_company_outreach_company_orgnr");
+
+                    b.Navigation("Company");
+                });
+
             modelBuilder.Entity("Reacher.Data.Entities.FinancialFact", b =>
                 {
                     b.HasOne("Reacher.Data.Entities.Company", "Company")
@@ -303,6 +344,8 @@ namespace Reacher.Data.Migrations
             modelBuilder.Entity("Reacher.Data.Entities.Company", b =>
                 {
                     b.Navigation("FinancialFacts");
+
+                    b.Navigation("Outreach");
 
                     b.Navigation("Workplaces");
                 });

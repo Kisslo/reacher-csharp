@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Reacher.Data.Entities;
 using static Reacher.Data.Tests.TestData;
 
 namespace Reacher.Data.Tests;
@@ -33,6 +34,8 @@ public sealed class SchemaTests(MigratedPostgresFixture postgres)
             "created_at", "started_at", "finished_at",
         ],
         ["brave_usage"] = ["month", "request_count"],
+        ["company_outreach"] =
+            ["orgnr", "called_at", "willing", "note", "updated_at"],
     };
 
     [Fact]
@@ -61,6 +64,14 @@ public sealed class SchemaTests(MigratedPostgresFixture postgres)
             company.Workplaces.Add(NewWorkplace("90000002", Orgnr));
             company.FinancialFacts.Add(NewFact(Orgnr, 2025, "revenue", 1_200_000));
             company.FinancialFacts.Add(NewFact(Orgnr, 2025, "net_result", -50_000));
+            company.Outreach = new CompanyOutreach
+            {
+                Orgnr = Orgnr,
+                CalledAt = Now,
+                Willing = true,
+                Note = "Test note",
+                UpdatedAt = Now,
+            };
             db.Companies.Add(company);
             await db.SaveChangesAsync();
         }
@@ -76,6 +87,46 @@ public sealed class SchemaTests(MigratedPostgresFixture postgres)
         {
             Assert.False(await db.Workplaces.AnyAsync(w => w.Orgnr == Orgnr));
             Assert.False(await db.FinancialFacts.AnyAsync(f => f.Orgnr == Orgnr));
+            Assert.False(await db.CompanyOutreach.AnyAsync(o => o.Orgnr == Orgnr));
+        }
+    }
+
+    [Fact]
+    public async Task Updating_a_company_keeps_its_outreach()
+    {
+        await using (var db = postgres.CreateContext())
+        {
+            var company = NewCompany(Orgnr);
+            company.Outreach = new CompanyOutreach
+            {
+                Orgnr = Orgnr,
+                CalledAt = Now,
+                Willing = false,
+                Note = "Keep this note",
+                UpdatedAt = Now,
+            };
+            db.Companies.Add(company);
+            await db.SaveChangesAsync();
+        }
+
+        await using (var db = postgres.CreateContext())
+        {
+            var company = await db.Companies.SingleAsync(c => c.Orgnr == Orgnr);
+            company.Name = "Updated Testbolaget AB";
+            await db.SaveChangesAsync();
+        }
+
+        await using (var db = postgres.CreateContext())
+        {
+            var outreach = await db.CompanyOutreach.SingleAsync(o => o.Orgnr == Orgnr);
+            Assert.Equal(Now, outreach.CalledAt);
+            Assert.False(outreach.Willing);
+            Assert.Equal("Keep this note", outreach.Note);
+        }
+
+        await using (var db = postgres.CreateContext())
+        {
+            await db.Companies.Where(c => c.Orgnr == Orgnr).ExecuteDeleteAsync();
         }
     }
 

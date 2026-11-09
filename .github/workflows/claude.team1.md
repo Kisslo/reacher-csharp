@@ -60,18 +60,19 @@ Real annual reports are messier than the fixture. These rules all come from bugs
 | T1-01 | [#5](https://github.com/Kisslo/reacher-csharp/issues/5) | [BE] EF Core entities and first migration | 45 | J-01, J-02 | Done (PR #30) |
 | T1-02 | [#6](https://github.com/Kisslo/reacher-csharp/issues/6) | [BE] SCB client | 45 | J-02, J-03 | Done (PR #31) |
 | T1-03 | [#7](https://github.com/Kisslo/reacher-csharp/issues/7) | [BE] iXBRL parser | 45 | J-02 | Done (PR #38) |
-| T1-04 | [#8](https://github.com/Kisslo/reacher-csharp/issues/8) | [BE] Bolagsverket client | 45 | J-02, J-03 | In review |
-| T1-08 | [#12](https://github.com/Kisslo/reacher-csharp/issues/12) | [BE] Code tables and endpoints | 45 | T1-01, T1-02 | Todo |
-| T1-05 | [#9](https://github.com/Kisslo/reacher-csharp/issues/9) | [BE] SCB ingest pipeline | 46 | T1-01, T1-02 | Todo |
-| T1-06 | [#10](https://github.com/Kisslo/reacher-csharp/issues/10) | [BE] Financials ingest | 46 | T1-01, T1-03, T1-04 | Todo |
-| T1-07 | [#11](https://github.com/Kisslo/reacher-csharp/issues/11) | [BE] Ingest job: queue, background worker, status | 46 | T1-05, T1-06 | Todo |
-| T1-09 | [#21](https://github.com/Kisslo/reacher-csharp/issues/21) | [FE] Search form and ingest progress | 47 | J-05, T1-08, T2-02 | Todo |
-| T1-10 | [#22](https://github.com/Kisslo/reacher-csharp/issues/22) | [FE] Company table with filters and sorting | 47 | J-05, T2-01 | Todo |
+| T1-04 | [#8](https://github.com/Kisslo/reacher-csharp/issues/8) | [BE] Bolagsverket client | 45 | J-02, J-03 | Done (PR #40) |
+| T1-08 | [#12](https://github.com/Kisslo/reacher-csharp/issues/12) | [BE] Code tables and endpoints | 45 | T1-01, T1-02 | Done (PR #50) |
+| T1-05 | [#9](https://github.com/Kisslo/reacher-csharp/issues/9) | [BE] SCB ingest pipeline | 46 | T1-01, T1-02 | Done (PR #42) |
+| T1-06 | [#10](https://github.com/Kisslo/reacher-csharp/issues/10) | [BE] Financials ingest | 46 | T1-01, T1-03, T1-04 | Done (PR #45) |
+| T1-07 | [#11](https://github.com/Kisslo/reacher-csharp/issues/11) | [BE] Ingest job: queue, background worker, status | 46 | T1-05, T1-06 | Done (PR #48) |
+| T1-09 | [#21](https://github.com/Kisslo/reacher-csharp/issues/21) | [FE] Search form and ingest progress | 47 | J-05, T1-08, T2-02 | Done (PR #51) |
+| T1-10 | [#22](https://github.com/Kisslo/reacher-csharp/issues/22) | [FE] Company table with filters and sorting | 47 | J-05, T2-01 | Done (PR #55) |
+| T1-11 | [#43](https://github.com/Kisslo/reacher-csharp/issues/43) | [BE] iXBRL parser misses the Flerårsöversikt in some real reports | 46 | T1-03 | Done (PR #47) |
 
 Week 45 is the heaviest. If something slips, T1-08 can wait (only T1-09 in week 47 needs it).
 
 ## Team status
-*2026-10-27:* nothing started yet. J-01 is merged. T1-03 can start as soon as J-02 is merged; T1-01 too.
+*2026-11-09:* All Team 1 tickets T1-01–T1-11 are complete. The Team 1 portion of J-15 is implemented and tested; review/integration with Team 2 precedes J-16's frontend row controls.
 
 ## Team 1 open questions
 - **Stop paging at the first `19`/`20` (T1-05):** the list is sorted by `peOrgNr`, so this would save calls. Only do it with a test showing it holds, and log how many pages were skipped.

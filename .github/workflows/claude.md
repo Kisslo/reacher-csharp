@@ -154,8 +154,15 @@ The team file wins for team-internal matters only. It never overrides the hard r
 | J-05 | [#20](https://github.com/Kisslo/reacher-csharp/issues/20) | [FE] Frontend skeleton | 46 | J-01, J-02 | Todo |
 | J-06 | [#25](https://github.com/Kisslo/reacher-csharp/issues/25) | End-to-end test, demo and README | 48 | all | Todo |
 | J-07 | [#34](https://github.com/Kisslo/reacher-csharp/issues/34) | [BE] Fix flaky startup-validation test | 44 | – | Done (PR #35) |
-| J-08 | [#36](https://github.com/Kisslo/reacher-csharp/issues/36) | [BE] Pin the .NET SDK band and regenerate lock files on conflict | 44 | – | In progress |
-| J-09 | [#52](https://github.com/Kisslo/reacher-csharp/issues/52) | [FE] Frontend test runner | 46 | – | In progress |
+| J-08 | [#36](https://github.com/Kisslo/reacher-csharp/issues/36) | [BE] Pin the .NET SDK band and regenerate lock files on conflict | 44 | – | Done (PR #37) |
+| J-09 | [#52](https://github.com/Kisslo/reacher-csharp/issues/52) | [FE] Frontend test runner | 46 | – | Done (PR #54) |
+| J-10 | [#62](https://github.com/Kisslo/reacher-csharp/issues/62) | Record D17: temporary test deployment | 48 | – | Done (PR #66) |
+| J-11 | [#63](https://github.com/Kisslo/reacher-csharp/issues/63) | [BE] Password gate for the test deployment | 48 | J-10 | Done (PR #68) |
+| J-12 | [#64](https://github.com/Kisslo/reacher-csharp/issues/64) | [BE] Single image serving the API and frontend | 48 | J-05 | Done (PR #69) |
+| J-13 | [#65](https://github.com/Kisslo/reacher-csharp/issues/65) | Deploy the test version to Render | 48 | J-10, J-11, J-12 | Done (PR #71) |
+| J-14 | [#70](https://github.com/Kisslo/reacher-csharp/issues/70) | Delete the Render test deployment and rotate keys | 48 | J-13 | Todo |
+| J-15 | [#72](https://github.com/Kisslo/reacher-csharp/issues/72) | [BE] Call status, willingness, and a note per company | 47 | T1-01, T2-01 | Implementation complete (tests passing; PR pending) |
+| J-16 | [#73](https://github.com/Kisslo/reacher-csharp/issues/73) | [FE] Call status, willingness, and note on the company row | 47 | J-15 | Todo |
 
 ## Plan
 | Week | Dates | Goal | Works at the end of the week |
@@ -170,7 +177,7 @@ The team file wins for team-internal matters only. It never overrides the hard r
 You don't remember earlier conversations. At the end of a session, when asked, write a short status update (done / in progress / next / blocked) for the team you are working with. It goes under "Team status" in that team's file. Cross-team items (decisions, contract changes, open questions) go in this file. Keep the latest 3 sessions per status section; older history is in git.
 
 ## Current status (shared)
-*2026-10-27:* J-01 merged (PR #26): `docs/decisions.md` and `docs/contracts.md`. All tickets created (#1–#25). Next: J-02, then J-03 and T1-01; J-04 (these files) in review.
+*2026-11-09:* J-01–J-13 are complete, including the end-to-end flow, frontend test runner, Lighthouse columns, password-protected Render deployment and single-image packaging. J-14 is still open. J-15 backend implementation is complete in the working tree with migration, contract, D18 and passing backend tests; J-16 remains dependent on it.
 
 ## Open questions
 - **Rework score weights (T2-05):** the starting formula is an *assumption*. Revisit after the first ~20 real analyses.

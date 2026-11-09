@@ -107,6 +107,7 @@ if (app.Environment.IsDevelopment())
 app.MapHealthChecks("/health");
 app.MapCodeEndpoints();
 app.MapCompanyEndpoints();
+app.MapOutreachEndpoints();
 app.MapSearchEndpoints();
 app.MapWebsiteEndpoints();
 app.MapFallback("/api/{*path}", () => Results.NotFound());
