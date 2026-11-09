@@ -22,7 +22,7 @@ public sealed class CompanySearchFixture : IAsyncLifetime
 
     public Task DisposeAsync() => container.DisposeAsync().AsTask();
 
-    private ReacherDbContext CreateContext() =>
+    internal ReacherDbContext CreateContext() =>
         new(new DbContextOptionsBuilder<ReacherDbContext>()
             .UseNpgsql(ConnectionString)
             .Options);

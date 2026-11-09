@@ -16,6 +16,9 @@ public sealed record CompanyListItem(
     string RevenueClass,
     int RevenueClassYear,
     DateOnly? RegisteredAt,
+    DateTimeOffset? CalledAt,
+    bool? Willing,
+    string? Note,
     IReadOnlyList<WorkplaceListItem> Workplaces,
     IReadOnlyList<FinancialListItem> Financials);
 

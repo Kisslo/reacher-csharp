@@ -30,4 +30,6 @@ public sealed class Company
     public ICollection<Workplace> Workplaces { get; } = new List<Workplace>();
 
     public ICollection<FinancialFact> FinancialFacts { get; } = new List<FinancialFact>();
+
+    public CompanyOutreach? Outreach { get; set; }
 }

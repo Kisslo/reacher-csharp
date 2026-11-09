@@ -48,6 +48,8 @@ public static partial class CompanySearchQueryValidator
         var netResultMin = ParseDecimal(query.NetResultMin, "netResultMin", validationErrors);
         var netResultMax = ParseDecimal(query.NetResultMax, "netResultMax", validationErrors);
         var hasFinancials = ParseBoolean(query.HasFinancials, "hasFinancials", validationErrors);
+        var called = ParseBoolean(query.Called, "called", validationErrors);
+        var willing = ParseBoolean(query.Willing, "willing", validationErrors);
         var page = ParsePositiveInt(query.Page, "page", 1, validationErrors);
         var pageSize = ParsePositiveInt(query.PageSize, "pageSize", 50, validationErrors);
 
@@ -112,6 +114,8 @@ public static partial class CompanySearchQueryValidator
             netResultMin,
             netResultMax,
             hasFinancials,
+            called,
+            willing,
             sort,
             order,
             page,

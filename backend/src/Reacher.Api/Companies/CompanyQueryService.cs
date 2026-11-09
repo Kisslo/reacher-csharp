@@ -58,6 +58,8 @@ public sealed class CompanyQueryService(
         command.Parameters.Add(new NpgsqlParameter<decimal?>("net_result_min", parameters.NetResultMin));
         command.Parameters.Add(new NpgsqlParameter<decimal?>("net_result_max", parameters.NetResultMax));
         command.Parameters.Add(new NpgsqlParameter<bool>("has_financials", parameters.HasFinancials == true));
+        command.Parameters.Add(new NpgsqlParameter<bool?>("called", parameters.Called));
+        command.Parameters.Add(new NpgsqlParameter<bool?>("willing", parameters.Willing));
         command.Parameters.Add(new NpgsqlParameter<string>("sni", parameters.Sni));
         command.Parameters.Add(new NpgsqlParameter<string>("sort", parameters.Sort));
         command.Parameters.Add(new NpgsqlParameter<string>("order", parameters.Order));

@@ -63,21 +63,22 @@ Folder paths are a suggestion until J-02 lands. Update the table if they change.
 ## Tickets
 | ID | Issue | Title | Week | Blocked by | Status |
 |---|---|---|---|---|---|
-| T2-01 | [#13](https://github.com/Kisslo/reacher-csharp/issues/13) | [BE] Company search API | 45 | J-01, J-02 | Todo |
-| T2-03 | [#15](https://github.com/Kisslo/reacher-csharp/issues/15) | [BE] Brave client | 45 | J-02, J-03 | Todo |
-| T2-02 | [#14](https://github.com/Kisslo/reacher-csharp/issues/14) | [BE] Search and job endpoints | 46 | J-01, T1-07 (start on fake) | Todo |
-| T2-04 | [#16](https://github.com/Kisslo/reacher-csharp/issues/16) | [BE] Website matching | 46 | T2-03 | Todo |
-| T2-05 | [#17](https://github.com/Kisslo/reacher-csharp/issues/17) | [BE] Website analysis | 46 | J-02, J-03 | Todo |
-| T2-06 | [#18](https://github.com/Kisslo/reacher-csharp/issues/18) | [BE] Website endpoints | 46 | J-01, T2-04, T2-05 | Todo |
-| T2-07 | [#19](https://github.com/Kisslo/reacher-csharp/issues/19) | Measure matching accuracy | 46 | T2-04, T1-05 | Todo |
-| T2-08 | [#23](https://github.com/Kisslo/reacher-csharp/issues/23) | [FE] "Find website" panel | 47 | J-05, T2-06 | Todo |
-| T2-09 | [#24](https://github.com/Kisslo/reacher-csharp/issues/24) | [FE] Analysis view and score column | 47 | T2-08, T1-10 | Todo |
-| T2-11 | [#61](https://github.com/Kisslo/reacher-csharp/issues/61) | [FE] Sortable Lighthouse category columns in the company table | 47 | T2-09, T2-10 | Todo |
+| T2-01 | [#13](https://github.com/Kisslo/reacher-csharp/issues/13) | [BE] Company search API | 45 | J-01, J-02 | Done (PR #39) |
+| T2-03 | [#15](https://github.com/Kisslo/reacher-csharp/issues/15) | [BE] Brave client | 45 | J-02, J-03 | Done (PR #33) |
+| T2-02 | [#14](https://github.com/Kisslo/reacher-csharp/issues/14) | [BE] Search and job endpoints | 46 | J-01, T1-07 (start on fake) | Done (PR #49) |
+| T2-04 | [#16](https://github.com/Kisslo/reacher-csharp/issues/16) | [BE] Website matching | 46 | T2-03 | Done (PR #41) |
+| T2-05 | [#17](https://github.com/Kisslo/reacher-csharp/issues/17) | [BE] Website analysis | 46 | J-02, J-03 | Done (PR #32) |
+| T2-06 | [#18](https://github.com/Kisslo/reacher-csharp/issues/18) | [BE] Website endpoints | 46 | J-01, T2-04, T2-05 | Done (PR #44) |
+| T2-07 | [#19](https://github.com/Kisslo/reacher-csharp/issues/19) | Measure matching accuracy | 46 | T2-04, T1-05 | Done (PR #53) |
+| T2-08 | [#23](https://github.com/Kisslo/reacher-csharp/issues/23) | [FE] "Find website" panel | 47 | J-05, T2-06 | Done (PR #56) |
+| T2-09 | [#24](https://github.com/Kisslo/reacher-csharp/issues/24) | [FE] Analysis view and score column | 47 | T2-08, T1-10 | Done (PR #57) |
+| T2-10 | [#59](https://github.com/Kisslo/reacher-csharp/issues/59) | [FE] Fix behov sorting | 47 | T2-09 | Done (PR #60) |
+| T2-11 | [#61](https://github.com/Kisslo/reacher-csharp/issues/61) | [FE] Sortable Lighthouse category columns in the company table | 47 | T2-09, T2-10 | Done (PR #67) |
 
 T2-05 doesn't depend on Brave, so it can start as soon as J-03 is merged, in parallel with T2-03.
 
 ## Team status
-*2026-10-27:* nothing started yet. J-01 is merged. T2-01 can start after J-02 on our own fixtures; T2-03 and T2-05 after J-03.
+*2026-11-09:* All Team 2 tickets T2-01–T2-11 are complete. The Team 2 API portion of J-15 is implemented and tested; the frontend follow-up is J-16 after review.
 
 ## Team 2 open questions
 - **Brave plan:** confirm the limits when the key is set up and set `Brave:MonthlyCap` below them.

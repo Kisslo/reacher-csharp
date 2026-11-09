@@ -13,6 +13,8 @@ public sealed record CompanySearchParameters(
     decimal? NetResultMin,
     decimal? NetResultMax,
     bool? HasFinancials,
+    bool? Called,
+    bool? Willing,
     string Sort,
     string Order,
     int Page,

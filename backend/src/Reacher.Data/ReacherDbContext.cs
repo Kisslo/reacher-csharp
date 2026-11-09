@@ -22,6 +22,8 @@ public sealed class ReacherDbContext(DbContextOptions<ReacherDbContext> options)
 
     public DbSet<BraveUsage> BraveUsage => Set<BraveUsage>();
 
+    public DbSet<CompanyOutreach> CompanyOutreach => Set<CompanyOutreach>();
+
     // Here rather than at each UseNpgsql call, so the API, dotnet ef and the tests
     // can never disagree on column names.
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder) =>
@@ -78,6 +80,17 @@ public sealed class ReacherDbContext(DbContextOptions<ReacherDbContext> options)
         {
             usage.ToTable("brave_usage");
             usage.HasKey(u => u.Month);
+        });
+
+        modelBuilder.Entity<CompanyOutreach>(outreach =>
+        {
+            outreach.ToTable("company_outreach");
+            outreach.HasKey(o => o.Orgnr);
+            outreach.HasOne(o => o.Company)
+                .WithOne(c => c.Outreach)
+                .HasForeignKey<CompanyOutreach>(o => o.Orgnr)
+                .OnDelete(DeleteBehavior.Cascade);
+            outreach.Property(o => o.Note).HasMaxLength(500);
         });
     }
 }

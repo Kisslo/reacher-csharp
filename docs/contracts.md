@@ -10,6 +10,7 @@
 | `coverage` | `sni`, `municipality`, `fetched_at`. PK (`sni`, `municipality`) | Freshness per D6. |
 | `ingest_job` | `id` (uuid), `sni`, `municipalities` (text[]), `status` (`queued`/`running`/`succeeded`/`failed`), `phase`, `done`, `total`, `error`, `created_at`, `started_at`, `finished_at` | |
 | `brave_usage` | `month` PK (`YYYY-MM`), `request_count` | Counter only (D7). |
+| `company_outreach` | `orgnr` PK and FK → `company` (`ON DELETE CASCADE`), `called_at` (timestamp, null), `willing` (bool, null), `note` (text, max 500, null), `updated_at` | User-entered shared outreach state; one row per company. |
 
 ## API contract
 
@@ -49,8 +50,20 @@ GET  /api/companies
          coverage: [{ municipality, fetchedAt, stale }] }
 
 CompanyListItem = { orgnr, name, sni, employeeClass, revenueClass, revenueClassYear, registeredAt,
+                    calledAt, willing, note,
                     workplaces: [{ name, municipality, city }],
                     financials: [{ periodEnd, revenue, netResult }] }   // newest first, max 3
+
+Additional company filters:
+     &called=true|false&willing=true|false
+     // willing=null matches neither willingness filter.
+
+PUT  /api/companies/{orgnr}/outreach
+     body { called: bool, willing: bool | null, note: string | null }
+     → 204
+     → 404 company_not_found
+     → 400 note_rejected for a note over 500 characters, containing an URL,
+       or containing a 10- or 12-digit number starting with 19 or 20.
 ```
 
 ### Websites
