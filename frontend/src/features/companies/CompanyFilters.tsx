@@ -12,7 +12,11 @@ import {
 } from '../search/codeQueries';
 import { errorText } from '../search/searchRules';
 import { emptyFilters, validateFilters } from './companyView';
-import type { CompanyFilters as Filters, FilterErrors } from './companyView';
+import type {
+    CompanyFilters as Filters,
+    FilterErrors,
+    YesNoFilter,
+} from './companyView';
 
 type CompanyFiltersProps = {
     filters: Filters;
@@ -71,6 +75,26 @@ export function CompanyFilters({ filters, onApply }: CompanyFiltersProps) {
             </div>
 
             <div className="filter-fields">
+                <FlagFilter
+                    label={companyText.filterCalled}
+                    value={draft.called}
+                    onChange={(called) => update({ called })}
+                    options={[
+                        { value: 'all', label: companyText.filterAll },
+                        { value: 'true', label: companyText.filterCalledOnly },
+                        { value: 'false', label: companyText.filterNotCalled },
+                    ]}
+                />
+                <FlagFilter
+                    label={companyText.filterWilling}
+                    value={draft.willing}
+                    onChange={(willing) => update({ willing })}
+                    options={[
+                        { value: 'all', label: companyText.filterAll },
+                        { value: 'true', label: companyText.willingYes },
+                        { value: 'false', label: companyText.willingNo },
+                    ]}
+                />
                 <FilterField
                     label={companyText.filterRegisteredFrom}
                     type="date"
@@ -175,6 +199,36 @@ function ClassFilter({ legend, query, selected, onChange }: ClassFilterProps) {
                 </label>
             ))}
         </fieldset>
+    );
+}
+
+type FlagFilterProps = {
+    label: string;
+    value: YesNoFilter;
+    onChange: (value: YesNoFilter) => void;
+    options: { value: YesNoFilter; label: string }[];
+};
+
+function FlagFilter({ label, value, onChange, options }: FlagFilterProps) {
+    const id = useId();
+
+    return (
+        <div className="filter-select">
+            <label htmlFor={id}>{label}</label>
+            <select
+                id={id}
+                value={value}
+                onChange={(event) =>
+                    onChange(event.target.value as YesNoFilter)
+                }
+            >
+                {options.map((option) => (
+                    <option key={option.value} value={option.value}>
+                        {option.label}
+                    </option>
+                ))}
+            </select>
+        </div>
     );
 }
 

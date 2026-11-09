@@ -11,6 +11,8 @@ const errorMessages: Record<string, string> = {
     invalid_sni: 'SNI-koden måste bestå av fem siffror.',
     invalid_url: 'Webbadressen är inte giltig.',
     job_not_found: 'Sökjobbet hittades inte.',
+    note_rejected:
+        'Anteckningen sparades inte. Ta bort webbadresser och personnummer, och håll den under 500 tecken.',
     scb_unavailable: 'SCB kan inte nås just nu. Försök igen senare.',
     sni_not_found: 'SNI-koden kunde inte hittas.',
 };

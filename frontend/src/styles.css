@@ -28,19 +28,19 @@ body {
 }
 
 .app-header {
-    padding: 1.25rem 2rem;
+    padding: 1.25rem;
     color: #ffffff;
     background: #172033;
 }
 
 .app-header h1 {
-    max-width: 72rem;
+    max-width: 80rem;
     margin: 0 auto;
     font-size: 1.5rem;
 }
 
 .app-main {
-    max-width: 72rem;
+    max-width: 80rem;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 1.5rem 1.25rem;
 }

@@ -16,7 +16,16 @@ import type {
 import { companyText } from '../../texts/companies';
 import { employeeClassesQuery } from '../search/codeQueries';
 import type { CompanySort, CompanyView } from './companyView';
+import {
+    CalledCheckbox,
+    OutreachNote,
+    WillingSelect,
+    useCompanyOutreach,
+} from './CompanyOutreach';
 import { formatAmount, toAmount } from './format';
+
+/** Details through Samarbete. Score and action columns are added on top. */
+const fixedColumns = 9;
 
 /** Team 2 adds its action and score columns through this (T2-08, T2-09). */
 export type CompanyColumn = {
@@ -104,6 +113,12 @@ export function CompanyTable({
                         companySortActive={companySortActive}
                         onSort={onSort}
                     />
+                    <th scope="col" className="outreach">
+                        {companyText.columnCalled}
+                    </th>
+                    <th scope="col" className="outreach">
+                        {companyText.columnWilling}
+                    </th>
                     {extraColumns.map((column) => (
                         <th key={column.key} scope="col">
                             {column.header}
@@ -244,6 +259,11 @@ function CompanyRow({
 }: CompanyRowProps) {
     const [expanded, setExpanded] = useState(false);
     const detailsId = useId();
+    const outreach = useCompanyOutreach(company);
+    const columnCount =
+        fixedColumns +
+        extraColumns.length +
+        (showScore ? scoreColumns.length : 0);
     // Newest first. A missing figure stays missing, even if an older year has one,
     // because that is what the revenue and result filters compare against.
     const latest = company.financials.at(0);
@@ -289,6 +309,20 @@ function CompanyRow({
                 <td className="nowrap">
                     {company.registeredAt ?? companyText.missingValue}
                 </td>
+                <td className="outreach">
+                    <CalledCheckbox
+                        company={company}
+                        pending={outreach.pending}
+                        onCalled={outreach.saveCalled}
+                    />
+                </td>
+                <td className="outreach">
+                    <WillingSelect
+                        company={company}
+                        pending={outreach.pending}
+                        onWilling={outreach.saveWilling}
+                    />
+                </td>
                 {extraColumns.map((column) => (
                     <td key={column.key}>{column.cell(company)}</td>
                 ))}
@@ -304,15 +338,23 @@ function CompanyRow({
                         );
                     })}
             </tr>
+            {outreach.error !== null && (
+                <tr className="outreach-error">
+                    <td colSpan={columnCount}>
+                        <p role="alert">{outreach.error}</p>
+                    </td>
+                </tr>
+            )}
             {expanded && (
                 <tr id={detailsId} className="details-row">
-                    <td
-                        colSpan={
-                            7 +
-                            extraColumns.length +
-                            (showScore ? scoreColumns.length : 0)
-                        }
-                    >
+                    <td colSpan={columnCount}>
+                        <OutreachNote
+                            companyName={company.name}
+                            note={outreach.noteDraft}
+                            pending={outreach.pending}
+                            onNote={outreach.setNoteDraft}
+                            onSave={outreach.saveNote}
+                        />
                         <Financials company={company} />
                     </td>
                 </tr>

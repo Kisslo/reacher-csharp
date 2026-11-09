@@ -6,6 +6,7 @@ import type { CodeItem } from '../../api/codes';
 import type { Company, CompanyPage } from '../../api/companies';
 import { commonText } from '../../texts/common';
 import { companyText } from '../../texts/companies';
+import { getErrorMessage } from '../../texts/errors';
 import { renderWithQuery } from '../../test/render';
 import { analysisText } from '../analysis/analysisText';
 import type { SessionScore } from '../analysis/sessionScore';
@@ -32,6 +33,9 @@ const saxen = {
     revenueClass: '3',
     revenueClassYear: 2025,
     registeredAt: '2014-03-12',
+    calledAt: null,
+    willing: null,
+    note: null,
     workplaces: [
         { name: 'Salongen nr 7', municipality: '0180', city: 'Stockholm' },
         { name: null, municipality: '0184', city: 'Solna' },
@@ -51,6 +55,9 @@ const kamhuset = {
     revenueClass: '1',
     revenueClassYear: 2025,
     registeredAt: null,
+    calledAt: null,
+    willing: null,
+    note: null,
     workplaces: [{ name: null, municipality: '0180', city: 'Stockholm' }],
     financials: [],
 } satisfies Company;
@@ -173,6 +180,8 @@ describe('CompanyResults', () => {
                 companyText.columnRevenue,
                 companyText.columnNetResult,
                 companyText.columnRegistered,
+                companyText.columnCalled,
+                companyText.columnWilling,
             ]) {
                 expect(screen.getByRole('columnheader', { name })).toBeTruthy();
             }
@@ -427,7 +436,7 @@ describe('CompanyResults', () => {
             window.history.replaceState(
                 null,
                 '',
-                '/?sni=96210&employeeClass=2&revenueMin=5000&page=2',
+                '/?sni=96210&employeeClass=2&revenueMin=5000&called=true&willing=false&page=2',
             );
             const requests = stubApi();
             const user = await renderResults();
@@ -440,6 +449,8 @@ describe('CompanyResults', () => {
                 expect(lastOf(requests).has('employeeClass')).toBe(false);
             });
             expect(lastOf(requests).has('revenueMin')).toBe(false);
+            expect(lastOf(requests).has('called')).toBe(false);
+            expect(lastOf(requests).has('willing')).toBe(false);
             expect(window.location.search).toBe('?sni=96210');
             expect(
                 (
@@ -885,7 +896,7 @@ describe('CompanyResults', () => {
                     })
                     .closest('td')
                     ?.getAttribute('colspan'),
-            ).toBe('12');
+            ).toBe('14');
             await user.click(
                 screen.getByRole('button', {
                     name: companyText.hideDetails('Saxen & Kammen AB'),
@@ -1017,6 +1028,279 @@ describe('CompanyResults', () => {
                 'Saxen & Kammen AB',
                 'Tredje AB',
             ]);
+        });
+    });
+
+    describe('outreach', () => {
+        const savedNote = 'Ring nästa vecka';
+
+        function outreachCompany(overrides: Partial<Company> = {}): Company {
+            return {
+                ...saxen,
+                calledAt: '2026-11-01T10:00:00Z',
+                willing: true,
+                note: savedNote,
+                ...overrides,
+            };
+        }
+
+        function stubOutreach(options?: { rejectNote?: boolean }) {
+            let items = [outreachCompany(), kamhuset];
+            const puts: {
+                called: boolean;
+                willing: boolean | null;
+                note: string | null;
+            }[] = [];
+            const gets: URLSearchParams[] = [];
+
+            vi.stubGlobal(
+                'fetch',
+                vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+                    const url = String(input);
+                    if (url === '/api/codes/employee-classes') {
+                        return Response.json(employeeClasses);
+                    }
+                    if (url === '/api/codes/revenue-classes') {
+                        return Response.json(revenueClasses);
+                    }
+                    if (url.endsWith('/outreach')) {
+                        const body = JSON.parse(String(init?.body)) as {
+                            called: boolean;
+                            willing: boolean | null;
+                            note: string | null;
+                        };
+                        puts.push(body);
+                        if (
+                            options?.rejectNote === true &&
+                            body.note !== savedNote
+                        ) {
+                            return Response.json(
+                                { code: 'note_rejected' },
+                                {
+                                    status: 400,
+                                    headers: {
+                                        'Content-Type':
+                                            'application/problem+json',
+                                    },
+                                },
+                            );
+                        }
+
+                        const orgnr = url.split('/')[3] ?? '';
+                        items = items.map((item) =>
+                            item.orgnr === orgnr
+                                ? {
+                                      ...item,
+                                      calledAt: body.called
+                                          ? (item.calledAt ??
+                                            '2026-11-09T12:00:00Z')
+                                          : null,
+                                      willing: body.willing,
+                                      note: body.note,
+                                  }
+                                : item,
+                        );
+                        return new Response(null, { status: 204 });
+                    }
+                    if (url.startsWith('/api/companies?')) {
+                        gets.push(new URLSearchParams(url.split('?')[1]));
+                        return Response.json(
+                            page({ items, totalCount: items.length }),
+                        );
+                    }
+
+                    throw new Error(`Unexpected fetch: ${url}`);
+                }),
+            );
+
+            return { puts, gets };
+        }
+
+        function calledBox(): HTMLInputElement {
+            return screen.getByRole('checkbox', {
+                name: companyText.calledLabel('Saxen & Kammen AB'),
+            }) as HTMLInputElement;
+        }
+
+        function willingBox(): HTMLSelectElement {
+            return screen.getByRole('combobox', {
+                name: companyText.willingLabel('Saxen & Kammen AB'),
+            }) as HTMLSelectElement;
+        }
+
+        it('checks and unchecks Kontaktad without clearing willingness or the note', async () => {
+            const { puts } = stubOutreach();
+            const user = await renderResults();
+
+            expect(calledBox().checked).toBe(true);
+            await user.click(calledBox());
+
+            await waitFor(() => {
+                expect(calledBox().checked).toBe(false);
+                expect(calledBox().disabled).toBe(false);
+            });
+            expect(lastOf(puts)).toEqual({
+                called: false,
+                willing: true,
+                note: savedNote,
+            });
+            expect(willingBox().value).toBe('true');
+
+            await user.click(calledBox());
+
+            await waitFor(() => {
+                expect(calledBox().checked).toBe(true);
+                expect(calledBox().disabled).toBe(false);
+            });
+            expect(lastOf(puts)).toEqual({
+                called: true,
+                willing: true,
+                note: savedNote,
+            });
+            expect(window.location.search).not.toContain(savedNote);
+        });
+
+        it('sets Ja, Nej and empty on Samarbete without changing Kontaktad', async () => {
+            const { puts } = stubOutreach();
+            const user = await renderResults();
+            const choices = [
+                [companyText.willingNo, 'false'],
+                [companyText.willingUnset, ''],
+                [companyText.willingYes, 'true'],
+            ] as const;
+
+            for (const [label, value] of choices) {
+                await user.selectOptions(willingBox(), label);
+
+                await waitFor(() => {
+                    expect(willingBox().value).toBe(value);
+                    expect(willingBox().disabled).toBe(false);
+                });
+                expect(lastOf(puts)).toEqual({
+                    called: true,
+                    willing: value === '' ? null : value === 'true',
+                    note: savedNote,
+                });
+                expect(calledBox().checked).toBe(true);
+            }
+        });
+
+        it('saves a note and keeps it out of the URL', async () => {
+            const { puts } = stubOutreach();
+            const user = await renderResults();
+            const nextNote = 'Skicka mail med info';
+
+            await user.click(
+                screen.getByRole('button', {
+                    name: companyText.showDetails('Saxen & Kammen AB'),
+                }),
+            );
+            const field = screen.getByLabelText(
+                companyText.noteLabel('Saxen & Kammen AB'),
+            );
+            expect((field as HTMLTextAreaElement).placeholder).toBe(
+                companyText.notePlaceholder,
+            );
+            expect(companyText.notePlaceholder).toContain('Ring nästa vecka');
+            expect(companyText.notePlaceholder).toContain(
+                'Skicka mail med info',
+            );
+
+            await user.clear(field);
+            await user.type(field, nextNote);
+            await user.click(
+                screen.getByRole('button', { name: companyText.noteSave }),
+            );
+
+            await waitFor(() => {
+                expect(lastOf(puts).note).toBe(nextNote);
+            });
+            expect(lastOf(puts)).toEqual({
+                called: true,
+                willing: true,
+                note: nextNote,
+            });
+            expect((field as HTMLTextAreaElement).value).toBe(nextNote);
+            expect(calledBox().checked).toBe(true);
+            expect(willingBox().value).toBe('true');
+            expect(window.location.search).not.toContain('note');
+            expect(window.location.search).not.toContain('Skicka');
+        });
+
+        it('filters called and willingness in the request and the page URL', async () => {
+            const { gets } = stubOutreach();
+            const user = await renderResults();
+
+            await user.selectOptions(
+                screen.getByLabelText(companyText.filterCalled),
+                companyText.filterCalledOnly,
+            );
+            await user.selectOptions(
+                screen.getByLabelText(companyText.filterWilling),
+                companyText.willingYes,
+            );
+            await user.click(
+                screen.getByRole('button', { name: companyText.filterApply }),
+            );
+
+            await waitFor(() => {
+                expect(gets.length).toBeGreaterThan(1);
+            });
+            for (const params of [
+                lastOf(gets),
+                new URLSearchParams(window.location.search),
+            ]) {
+                expect(params.get('called')).toBe('true');
+                expect(params.get('willing')).toBe('true');
+                expect(params.has('note')).toBe(false);
+            }
+
+            await user.selectOptions(
+                screen.getByLabelText(companyText.filterCalled),
+                companyText.filterNotCalled,
+            );
+            await user.selectOptions(
+                screen.getByLabelText(companyText.filterWilling),
+                companyText.willingNo,
+            );
+            await user.click(
+                screen.getByRole('button', { name: companyText.filterApply }),
+            );
+
+            await waitFor(() => {
+                expect(lastOf(gets).get('called')).toBe('false');
+            });
+            expect(lastOf(gets).get('willing')).toBe('false');
+            expect(
+                new URLSearchParams(window.location.search).get('willing'),
+            ).toBe('false');
+        });
+
+        it('shows the Swedish error and keeps the previous note and both markers', async () => {
+            const { puts } = stubOutreach({ rejectNote: true });
+            const user = await renderResults();
+
+            await user.click(
+                screen.getByRole('button', {
+                    name: companyText.showDetails('Saxen & Kammen AB'),
+                }),
+            );
+            const field = screen.getByLabelText(
+                companyText.noteLabel('Saxen & Kammen AB'),
+            );
+            await user.clear(field);
+            await user.type(field, 'https://example.com');
+            await user.click(
+                screen.getByRole('button', { name: companyText.noteSave }),
+            );
+
+            const alert = await screen.findByRole('alert');
+            expect(alert.textContent).toBe(getErrorMessage('note_rejected'));
+            expect(calledBox().checked).toBe(true);
+            expect(willingBox().value).toBe('true');
+            expect((field as HTMLTextAreaElement).value).toBe(savedNote);
+            expect(lastOf(puts).note).toBe('https://example.com');
+            expect(window.location.search).not.toContain('example.com');
         });
     });
 });

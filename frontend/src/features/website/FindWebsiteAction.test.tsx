@@ -331,6 +331,9 @@ const company = {
     revenueClass: '3',
     revenueClassYear: 2025,
     registeredAt: '2014-03-12',
+    calledAt: null,
+    willing: null,
+    note: null,
     workplaces: [{ name: null, municipality: '0180', city: 'Stockholm' }],
     financials: [],
 } satisfies Company;

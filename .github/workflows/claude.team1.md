@@ -72,7 +72,7 @@ Real annual reports are messier than the fixture. These rules all come from bugs
 Week 45 is the heaviest. If something slips, T1-08 can wait (only T1-09 in week 47 needs it).
 
 ## Team status
-*2026-11-09:* All Team 1 tickets T1-01–T1-11 are complete. The Team 1 portion of J-15 is implemented and tested; review/integration with Team 2 precedes J-16's frontend row controls.
+*2026-11-09:* All Team 1 tickets T1-01–T1-11 are complete. J-15 is merged (PR #74), so outreach state stays in `company_outreach` across ingest. J-16's row controls are done.
 
 ## Team 1 open questions
 - **Stop paging at the first `19`/`20` (T1-05):** the list is sorted by `peOrgNr`, so this would save calls. Only do it with a test showing it holds, and log how many pages were skipped.

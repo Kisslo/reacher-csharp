@@ -11,6 +11,9 @@ export const companySorts = [
 export type CompanySort = (typeof companySorts)[number];
 export type SortOrder = 'asc' | 'desc';
 
+/** Omitted from the URL and the request. `true` and `false` match the API. */
+export type YesNoFilter = 'all' | 'true' | 'false';
+
 export type CompanyFilters = {
     employeeClasses: string[];
     revenueClasses: string[];
@@ -21,6 +24,8 @@ export type CompanyFilters = {
     netResultMin: string;
     netResultMax: string;
     hasFinancials: boolean;
+    called: YesNoFilter;
+    willing: YesNoFilter;
 };
 
 /** What the user has chosen to look at. Everything here is kept in the page URL. */
@@ -47,6 +52,8 @@ export const emptyFilters: CompanyFilters = {
     netResultMin: '',
     netResultMax: '',
     hasFinancials: false,
+    called: 'all',
+    willing: 'all',
 };
 
 const defaultSort: CompanySort = 'name';
@@ -67,6 +74,8 @@ const viewParameters = [
     'netResultMin',
     'netResultMax',
     'hasFinancials',
+    'called',
+    'willing',
     'sort',
     'order',
     'page',
@@ -89,6 +98,8 @@ export function readCompanyViewFromUrl(): CompanyView {
             netResultMin: readValue(params, 'netResultMin', amountPattern),
             netResultMax: readValue(params, 'netResultMax', amountPattern),
             hasFinancials: params.get('hasFinancials') === 'true',
+            called: readYesNo(params, 'called'),
+            willing: readYesNo(params, 'willing'),
         },
         sort: sort ?? defaultSort,
         order: params.get('order') === 'desc' ? 'desc' : defaultOrder,
@@ -103,6 +114,11 @@ function readList(params: URLSearchParams, name: string): string[] {
         .filter((value) => value !== '');
 
     return [...new Set(values)];
+}
+
+function readYesNo(params: URLSearchParams, name: string): YesNoFilter {
+    const value = params.get(name);
+    return value === 'true' || value === 'false' ? value : 'all';
 }
 
 function readValue(
@@ -145,6 +161,8 @@ export function appendCompanyView(
     if (filters.hasFinancials) {
         params.set('hasFinancials', 'true');
     }
+    appendYesNo(params, 'called', filters.called);
+    appendYesNo(params, 'willing', filters.willing);
     if (view.sort !== defaultSort) {
         params.set('sort', view.sort);
     }
@@ -225,6 +243,16 @@ export function validateFilters(filters: CompanyFilters): FilterErrors {
     }
 
     return errors;
+}
+
+function appendYesNo(
+    params: URLSearchParams,
+    name: string,
+    value: YesNoFilter,
+): void {
+    if (value !== 'all') {
+        params.set(name, value);
+    }
 }
 
 function isReversed(min: string, max: string): boolean {
