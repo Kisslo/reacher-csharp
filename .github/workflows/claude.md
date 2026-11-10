@@ -164,7 +164,7 @@ The team file wins for team-internal matters only. It never overrides the hard r
 | J-15 | [#72](https://github.com/Kisslo/reacher-csharp/issues/72) | [BE] Call status, willingness, and a note per company | 47 | T1-01, T2-01 | Done (PR #74) |
 | J-16 | [#73](https://github.com/Kisslo/reacher-csharp/issues/73) | [FE] Call status, willingness, and note on the company row | 47 | J-15 | Done (PR #75) |
 | J-17 | [#76](https://github.com/Kisslo/reacher-csharp/issues/76) | [BE] Cancel an ongoing company search | 47 | – | Todo |
-| J-18 | [#81](https://github.com/Kisslo/reacher-csharp/issues/81) | Add the new search tickets to the claude files | 47 | – | Todo |
+| J-18 | [#81](https://github.com/Kisslo/reacher-csharp/issues/81) | Add the new search tickets to the claude files | 47 | – | Done (PR #82) |
 
 ## Plan
 | Week | Dates | Goal | Works at the end of the week |
