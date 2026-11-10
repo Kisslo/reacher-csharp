@@ -74,8 +74,11 @@ Folder paths are a suggestion until J-02 lands. Update the table if they change.
 | T2-09 | [#24](https://github.com/Kisslo/reacher-csharp/issues/24) | [FE] Analysis view and score column | 47 | T2-08, T1-10 | Done (PR #57) |
 | T2-10 | [#59](https://github.com/Kisslo/reacher-csharp/issues/59) | [FE] Fix behov sorting | 47 | T2-09 | Done (PR #60) |
 | T2-11 | [#61](https://github.com/Kisslo/reacher-csharp/issues/61) | [FE] Sortable Lighthouse category columns in the company table | 47 | T2-09, T2-10 | Done (PR #67) |
+| T2-12 | [#80](https://github.com/Kisslo/reacher-csharp/issues/80) | [FE] Mark analysed companies and keep them at the top | 47 | – | Todo |
 
 T2-05 doesn't depend on Brave, so it can start as soon as J-03 is merged, in parallel with T2-03.
+
+T2-12 settles the score-sorting open question: analysed companies from this session stay above the others on every page, and the active sort applies inside each group.
 
 ## Team status
 *2026-11-09:* All Team 2 tickets T2-01–T2-11 are complete. J-16 adds Kontaktad, Samarbete, the note on the expanded row, and the called and willingness filters. A failed save keeps the previous note and both markers.
@@ -83,4 +86,4 @@ T2-05 doesn't depend on Brave, so it can start as soon as J-03 is merged, in par
 ## Team 2 open questions
 - **Brave plan:** confirm the limits when the key is set up and set `Brave:MonthlyCap` below them.
 - **PageSpeed quota:** confirm the key's daily quota in Google Cloud Console.
-- **Score sorting scope (T2-09):** the ticket sorts analysed companies on the current page only. Is that enough, or should it cover every company analysed this session?
+- **Score sorting scope:** settled by T2-12. Analysed companies from this search stay above the others on every page, in session memory only (D9). The active sort applies inside each group.

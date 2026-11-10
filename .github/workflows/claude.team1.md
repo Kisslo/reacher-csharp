@@ -68,6 +68,9 @@ Real annual reports are messier than the fixture. These rules all come from bugs
 | T1-09 | [#21](https://github.com/Kisslo/reacher-csharp/issues/21) | [FE] Search form and ingest progress | 47 | J-05, T1-08, T2-02 | Done (PR #51) |
 | T1-10 | [#22](https://github.com/Kisslo/reacher-csharp/issues/22) | [FE] Company table with filters and sorting | 47 | J-05, T2-01 | Done (PR #55) |
 | T1-11 | [#43](https://github.com/Kisslo/reacher-csharp/issues/43) | [BE] iXBRL parser misses the Flerårsöversikt in some real reports | 46 | T1-03 | Done (PR #47) |
+| T1-12 | [#77](https://github.com/Kisslo/reacher-csharp/issues/77) | [BE] Save companies while the search is still running | 47 | – | Todo |
+| T1-13 | [#78](https://github.com/Kisslo/reacher-csharp/issues/78) | [FE] Cancel button on the search progress | 47 | J-17 | Todo |
+| T1-14 | [#79](https://github.com/Kisslo/reacher-csharp/issues/79) | [FE] Update the company table while a search is running | 47 | T1-12 | Todo |
 
 Week 45 is the heaviest. If something slips, T1-08 can wait (only T1-09 in week 47 needs it).
 
