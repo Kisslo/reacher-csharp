@@ -79,7 +79,7 @@ public sealed class FakeIngestCoordinator(IOptions<IngestOptions> options, TimeP
             return Task.FromResult(job?.ToResponse());
         }
     }
-    
+
     public Task<CancelJobResult> CancelAsync(Guid jobId, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
