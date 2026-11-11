@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { cleanup, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { focusManager } from '@tanstack/react-query';
@@ -134,7 +135,9 @@ describe('SearchPage cancel', () => {
         expect(
             screen.queryByRole('button', { name: searchText.cancel }),
         ).toBeNull();
-        expect(screen.queryByText('Resultat')).toBeNull();
+        // Companies saved before the failure stay listed (D19).
+        expect(screen.getByText('Resultat')).toBeTruthy();
+        expect(screen.getByText(searchText.resultsPartial)).toBeTruthy();
     });
 
     it('cancels a running search, stops polling, and does not start a new search', async () => {
@@ -156,7 +159,8 @@ describe('SearchPage cancel', () => {
         ).toBeTruthy();
         expect(screen.queryByRole('progressbar')).toBeNull();
         expect(screen.queryByText(searchText.progressFailed)).toBeNull();
-        expect(screen.queryByText('Resultat')).toBeNull();
+        expect(screen.getByText('Resultat')).toBeTruthy();
+        expect(screen.getByText(searchText.resultsPartial)).toBeTruthy();
         expect(
             screen.getByRole('button', { name: searchText.submit }),
         ).toBeTruthy();
@@ -175,7 +179,7 @@ describe('SearchPage cancel', () => {
         );
         expect(count(calls, 'POST', '/api/searches')).toBe(searchesAfterCancel);
         expect(screen.getByText(searchText.progressCancelled)).toBeTruthy();
-        expect(screen.queryByText('Resultat')).toBeNull();
+        expect(screen.getByText('Resultat')).toBeTruthy();
     });
 
     it('shows the Swedish error when cancel returns 409 job_not_cancellable', async () => {
@@ -199,5 +203,95 @@ describe('SearchPage cancel', () => {
         expect((await screen.findByRole('alert')).textContent).toBe(message);
         expect(screen.queryByText(searchText.progressFailed)).toBeNull();
         expect(screen.queryByText(searchText.progressCancelled)).toBeNull();
+    });
+});
+
+describe('SearchPage while a search is running', () => {
+    beforeEach(() => {
+        window.history.replaceState(null, '', '/?sni=96210&municipality=0180');
+    });
+
+    afterEach(() => {
+        cleanup();
+        vi.useRealTimers();
+        focusManager.setFocused(undefined);
+        vi.unstubAllGlobals();
+        window.history.replaceState(null, '', '/');
+    });
+
+    /** Stands in for the company table: shows `live` and keeps typed text. */
+    function FakeResults({ live }: { live: boolean }) {
+        const [draft, setDraft] = useState('');
+        return (
+            <>
+                <p>{live ? 'Listan uppdateras' : 'Listan är klar'}</p>
+                <input
+                    aria-label="Utkast"
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                />
+            </>
+        );
+    }
+
+    function renderLivePage() {
+        renderWithQuery(
+            <SearchPage
+                renderResults={(_search, live) => <FakeResults live={live} />}
+            />,
+        );
+    }
+
+    it('shows the list and the incomplete text while running, and hides the text once the job has succeeded', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        focusManager.setFocused(true);
+        const statuses = ['queued', 'running', 'succeeded'];
+        let index = 0;
+        stubApi({
+            job: () => job(statuses[Math.min(index++, statuses.length - 1)]),
+        });
+        renderLivePage();
+
+        expect(await screen.findByText('Listan uppdateras')).toBeTruthy();
+        expect(screen.getByText(searchText.resultsIncomplete)).toBeTruthy();
+        expect(
+            screen.queryByRole('button', { name: searchText.refresh }),
+        ).toBeNull();
+
+        await vi.advanceTimersByTimeAsync(2000);
+        expect(
+            await screen.findByText(searchText.progressCompanies(1, 4)),
+        ).toBeTruthy();
+        expect(screen.getByText('Listan uppdateras')).toBeTruthy();
+        expect(screen.getByText(searchText.resultsIncomplete)).toBeTruthy();
+
+        await vi.advanceTimersByTimeAsync(2000);
+        expect(await screen.findByText('Listan är klar')).toBeTruthy();
+        expect(screen.queryByText(searchText.resultsIncomplete)).toBeNull();
+        expect(screen.queryByText(searchText.resultsPartial)).toBeNull();
+        expect(
+            screen.getByRole('button', { name: searchText.refresh }),
+        ).toBeTruthy();
+    });
+
+    it('keeps what the user typed in the list when the job succeeds', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        focusManager.setFocused(true);
+        let succeeded = false;
+        stubApi({ job: () => job(succeeded ? 'succeeded' : 'running') });
+        const user = userEvent.setup({
+            advanceTimers: vi.advanceTimersByTime,
+            delay: null,
+        });
+        renderLivePage();
+
+        await user.type(await screen.findByLabelText('Utkast'), 'Ring');
+        succeeded = true;
+        await vi.advanceTimersByTimeAsync(2000);
+
+        expect(await screen.findByText('Listan är klar')).toBeTruthy();
+        expect(
+            (screen.getByLabelText('Utkast') as HTMLInputElement).value,
+        ).toBe('Ring');
     });
 });

@@ -35,4 +35,8 @@ export const searchText = {
     progressFailed: 'Hämtningen misslyckades',
     progressCancelled: 'Sökningen avbröts',
     cancel: 'Avbryt sökning',
+    resultsIncomplete:
+        'Sökningen pågår, så listan är inte komplett. Nya företag visas medan de hämtas, och uppgifterna räknas som aktuella först när sökningen är klar.',
+    resultsPartial:
+        'Sökningen blev inte klar, så listan kan sakna företag och uppgifterna är inte aktuella.',
 } as const;

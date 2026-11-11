@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useIsMutating, useQuery } from '@tanstack/react-query';
 
 import type { Company, CompanyPage } from '../../api/companies';
 import { commonText } from '../../texts/common';
@@ -14,6 +14,7 @@ import {
 import type { CompanyComparer } from './analysedFirst';
 import { companiesQuery } from './companyQueries';
 import { CompanyFilters } from './CompanyFilters';
+import { outreachMutationKey } from './CompanyOutreach';
 import { CompanyTable } from './CompanyTable';
 import type { CompanyColumn } from './CompanyTable';
 import {
@@ -39,20 +40,34 @@ import type {
 import { Pagination } from './Pagination';
 import './companies.css';
 
+/** How often the list reloads while its search is still running (T1-14). */
+const liveRefetchMs = 5000;
+
 type CompanyResultsProps = {
     search: SearchSelection;
+    /** True while the ingest job for this search is queued or running. */
+    live?: boolean;
     extraColumns?: CompanyColumn[];
     scoreLookup?: (orgnr: string) => SessionScore | undefined;
 };
 
 export function CompanyResults({
     search,
+    live = false,
     extraColumns = [],
     scoreLookup,
 }: CompanyResultsProps) {
     const [view, setView] = useState(readCompanyViewFromUrl);
     const [scoreSort, setScoreSort] = useState<ScoreSort | null>(null);
-    const companies = useQuery(companiesQuery(search, view));
+    const savingOutreach =
+        useIsMutating({ mutationKey: outreachMutationKey }) > 0;
+    const companies = useQuery({
+        ...companiesQuery(search, view),
+        // The ingest commits companies in batches while it runs (D19), so
+        // reload the current page until the job ends. Pause during an outreach
+        // save, so a reload cannot briefly show the old value over the new one.
+        refetchInterval: live && !savingOutreach ? liveRefetchMs : false,
+    });
     // Every row this search has shown, in memory only. The list is remounted for
     // a new search, so this is "this search" and a reload clears it. Rows the
     // session has analysed are pinned from here on every page (T2-12).

@@ -40,8 +40,11 @@ type Stage =
     | { kind: 'ready'; search: SearchSelection };
 
 type SearchPageProps = {
-    /** T1-10 passes the company table here. */
-    renderResults: (search: SearchSelection) => ReactNode;
+    /**
+     * T1-10 passes the company table here. `live` is true while the ingest job
+     * is queued or running, so the table keeps reloading (T1-14).
+     */
+    renderResults: (search: SearchSelection, live: boolean) => ReactNode;
 };
 
 export function SearchPage({ renderResults }: SearchPageProps) {
@@ -109,6 +112,24 @@ export function SearchPage({ renderResults }: SearchPageProps) {
         !jobCancelled &&
         (jobQuery.isError || jobQuery.data?.status === 'failed');
     const readySearch = getReadySearch(stage, jobSucceeded);
+    // The table is shown as soon as a search has started, because the ingest
+    // saves companies while it runs (D19). It stays after a cancel or failure,
+    // so a note the user is typing is not lost.
+    const resultsSearch = stage.kind === 'idle' ? null : stage.search;
+    const jobRunning =
+        stage.kind === 'ingesting' &&
+        !jobSucceeded &&
+        !jobFailed &&
+        !jobCancelled;
+    const jobEnded = stage.kind === 'ingesting' && !jobRunning;
+
+    // The last reload can be up to 5 s old when the job ends, so fetch the
+    // list once more to show the final batch.
+    useEffect(() => {
+        if (jobEnded) {
+            void queryClient.invalidateQueries({ queryKey: ['companies'] });
+        }
+    }, [jobEnded, queryClient]);
 
     const coverageQuery = useQuery({
         queryKey: ['coverage', readySearch?.sni, readySearch?.municipalities],
@@ -231,24 +252,32 @@ export function SearchPage({ renderResults }: SearchPageProps) {
                 />
             )}
 
-            {readySearch !== null && (
+            {resultsSearch !== null && (
                 <div className="search-ready">
-                    <div className="refresh-row">
-                        <p>{lastFetchedText(coverageQuery.data)}</p>
-                        <button
-                            type="button"
-                            disabled={searchMutation.isPending}
-                            onClick={() =>
-                                void runSearch({
-                                    ...readySearch,
-                                    refresh: true,
-                                })
-                            }
-                        >
-                            {searchText.refresh}
-                        </button>
-                    </div>
-                    {renderResults(readySearch)}
+                    {readySearch !== null ? (
+                        <div className="refresh-row">
+                            <p>{lastFetchedText(coverageQuery.data)}</p>
+                            <button
+                                type="button"
+                                disabled={searchMutation.isPending}
+                                onClick={() =>
+                                    void runSearch({
+                                        ...readySearch,
+                                        refresh: true,
+                                    })
+                                }
+                            >
+                                {searchText.refresh}
+                            </button>
+                        </div>
+                    ) : (
+                        <p className="results-incomplete">
+                            {jobRunning
+                                ? searchText.resultsIncomplete
+                                : searchText.resultsPartial}
+                        </p>
+                    )}
+                    {renderResults(resultsSearch, jobRunning)}
                 </div>
             )}
         </section>
