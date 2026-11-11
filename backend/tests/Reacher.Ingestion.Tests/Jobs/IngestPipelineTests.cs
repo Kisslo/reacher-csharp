@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Reacher.Ingestion.Bolagsverket;
 using Reacher.Ingestion.Jobs;
@@ -63,6 +64,29 @@ public sealed class IngestPipelineTests(IngestPostgresFixture postgres)
         Assert.Equal(new IngestProgress(IngestPhases.Financials, 1, 1), progress.Reports[^1]);
     }
 
+    [Fact]
+    public async Task A_job_that_fails_in_the_financials_phase_keeps_its_companies_but_is_not_fresh()
+    {
+        var scb = new FakeScbClient
+        {
+            Workplaces = { Workplace("90000001", CompanyA) },
+            LegalUnits = { [CompanyA] = LegalUnit(CompanyA) },
+        };
+        // Wrong credentials stop the financials phase (T1-06).
+        var bolagsverket = new FakeBolagsverketClient
+        {
+            Failure = new BolagsverketAuthException("POST /oauth2/token: HTTP 401."),
+        };
+
+        await Assert.ThrowsAsync<BolagsverketAuthException>(
+            () => Run(scb, bolagsverket, [Stockholm]));
+
+        // The company is listed, but the next search still starts a new ingest (D19).
+        await using var db = postgres.CreateContext();
+        Assert.Equal(["5599001236"], await db.Companies.Select(c => c.Orgnr).ToListAsync());
+        Assert.Empty(await db.Coverage.ToListAsync());
+    }
+
     private async Task Run(
         FakeScbClient scb,
         FakeBolagsverketClient bolagsverket,
@@ -95,8 +119,7 @@ public sealed class IngestPipelineTests(IngestPostgresFixture postgres)
                     ],
                 }),
                 time,
-                NullLogger<FinancialsIngestService>.Instance),
-            db);
+                NullLogger<FinancialsIngestService>.Instance));
         await pipeline.RunAsync(
             Sni, municipalities, progress ?? new RecordingProgress(), CancellationToken.None);
     }

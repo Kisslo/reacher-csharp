@@ -9,6 +9,13 @@ public sealed class IngestOptions
 
     public int FreshnessDays { get; set; } = 30;
 
+    /// <summary>
+    /// How many companies the SCB ingest fetches between two commits (D19). Smaller shows
+    /// companies in the list sooner. At 2 SCB requests per second, 10 is about 5 seconds.
+    /// </summary>
+    [Range(1, 1000, ErrorMessage = "Setting 'Ingest:SaveBatchSize' must be between 1 and 1000.")]
+    public int SaveBatchSize { get; set; } = 10;
+
     // Empty here on purpose. The binder appends to a collection that already has
     // items, so the allow-list lives only in appsettings.json. An empty list must
     // not mean "allow every legal form" (fail closed).

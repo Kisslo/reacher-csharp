@@ -16,8 +16,16 @@ namespace Reacher.Ingestion.Scb;
 /// country and filtered by the workplace's municipality here (docs/scb-fields.md).
 /// </summary>
 /// <remarks>
+/// <para>
 /// Only eligible aktiebolag are stored (D2, D5). A personnummer is dropped as the very first
 /// step: it is never mapped, fetched, logged or stored. Logs hold counts only.
+/// </para>
+/// <para>
+/// Two calls (D19). <see cref="RunAsync"/> commits companies in batches while it fetches them,
+/// so the company list fills up during a long search. <see cref="CompleteAsync"/> marks the
+/// data fresh and deletes what SCB no longer lists, and is only called once the whole job has
+/// succeeded. A failed or cancelled job keeps its batches and never runs that cleanup.
+/// </para>
 /// </remarks>
 public sealed partial class ScbIngestService(
     IScbClient scb,
@@ -38,7 +46,11 @@ public sealed partial class ScbIngestService(
     private static readonly TimeZoneInfo Stockholm =
         TimeZoneInfo.FindSystemTimeZoneById("Europe/Stockholm");
 
-    public async Task<ScbIngestResult> RunAsync(
+    /// <summary>
+    /// Steps 1-5: reads SCB and commits every <see cref="IngestOptions.SaveBatchSize"/>
+    /// companies. Coverage and the cleanup are left to <see cref="CompleteAsync"/>.
+    /// </summary>
+    public async Task<ScbIngestRun> RunAsync(
         string sni,
         IReadOnlyCollection<string> municipalities,
         IProgress<IngestProgress> progress,
@@ -53,33 +65,60 @@ public sealed partial class ScbIngestService(
         }
 
         var started = time.GetTimestamp();
-        var now = time.GetUtcNow();
-        var result = new ScbIngestResult();
-        var wanted = municipalities.ToHashSet(StringComparer.Ordinal);
+        var run = new ScbIngestRun(sni, municipalities, time.GetUtcNow());
 
-        var byCompany = await ReadWorkplacesAsync(
-            sni, wanted, now, progress, result, cancellationToken);
-        var (companies, workplaces, notEligible) = await FetchCompaniesAsync(
-            sni, byCompany, now, progress, result, cancellationToken);
-        await SaveAsync(
-            sni, wanted, companies, workplaces, notEligible, now, result, cancellationToken);
+        var byCompany = await ReadWorkplacesAsync(run, progress, cancellationToken);
+        await FetchAndSaveCompaniesAsync(run, byCompany, progress, cancellationToken);
 
-        result.Duration = time.GetElapsedTime(started);
-        LogFinished(logger, sni, wanted.Count, result);
-        return result;
+        run.Result.Duration = time.GetElapsedTime(started);
+        LogSaved(logger, sni, run.Municipalities.Count, run.Result);
+        return run;
+    }
+
+    /// <summary>
+    /// Steps 6-7 in one transaction, for a job that has succeeded (D19). Never call this for
+    /// a job that failed or was cancelled: the run has only seen part of SCB's list, so the
+    /// cleanup would delete companies that are still listed, and their outreach with them
+    /// (D18).
+    /// </summary>
+    public async Task CompleteAsync(ScbIngestRun run, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(run);
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+        await UpsertCoverageAsync(run, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+
+        // Step 6: what SCB no longer lists in the requested municipalities is gone. Other
+        // municipalities belong to other searches and are left alone.
+        var municipalities = run.Municipalities.ToList();
+        var seen = run.Cfars.ToList();
+        run.Result.WorkplacesDeleted = await db.Workplaces
+            .Where(w => w.Sni == run.Sni
+                && municipalities.Contains(w.Municipality)
+                && !seen.Contains(w.Cfar))
+            .ExecuteDeleteAsync(cancellationToken);
+
+        // A company is only shown through its workplaces (D15), so one without any goes too.
+        run.Result.CompaniesDeleted += await db.Companies
+            .Where(c => !db.Workplaces.Any(w => w.Orgnr == c.Orgnr))
+            .ExecuteDeleteAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+        db.ChangeTracker.Clear();
+        LogCompleted(logger, run.Sni, run.Municipalities.Count, run.Result);
     }
 
     /// <summary>
     /// Steps 1-3: walks every page and keeps the workplaces that may be stored, by orgnr.
     /// </summary>
     private async Task<Dictionary<string, List<Workplace>>> ReadWorkplacesAsync(
-        string sni,
-        HashSet<string> wanted,
-        DateTimeOffset now,
+        ScbIngestRun run,
         IProgress<IngestProgress> progress,
-        ScbIngestResult result,
         CancellationToken cancellationToken)
     {
+        var sni = run.Sni;
+        var result = run.Result;
         var pageSize = scbOptions.Value.PageSize;
         var byCompany = new Dictionary<string, List<Workplace>>(StringComparer.Ordinal);
         var seenCfars = new HashSet<string>(StringComparer.Ordinal);
@@ -107,7 +146,7 @@ public sealed partial class ScbIngestService(
 
             // D3: the workplace's own municipality, never the company's kommunSate.
             if (row.Belagenhetsadress is not { Kommun: { } municipality } address
-                || !wanted.Contains(municipality))
+                || !run.Municipalities.Contains(municipality))
             {
                 result.OtherMunicipality++;
                 continue;
@@ -146,7 +185,7 @@ public sealed partial class ScbIngestService(
                 City = Clean(address.BPostOrt) ?? "",
                 WorkplaceStatus = row.AeStat,
                 AdBlockType = row.ReklamSparrTyp,
-                UpdatedAt = now,
+                UpdatedAt = run.StartedAt,
             });
         }
 
@@ -156,48 +195,50 @@ public sealed partial class ScbIngestService(
     }
 
     /// <summary>
-    /// Step 4: one call per company, however many workplaces it has (the cache per run).
+    /// Steps 4-5: one call per company, however many workplaces it has (the cache per run),
+    /// and a commit every <see cref="IngestOptions.SaveBatchSize"/> companies.
     /// </summary>
-    private async Task<(List<Company> Companies, List<Workplace> Workplaces, List<string> NotEligible)>
-        FetchCompaniesAsync(
-            string sni,
-            Dictionary<string, List<Workplace>> byCompany,
-            DateTimeOffset now,
-            IProgress<IngestProgress> progress,
-            ScbIngestResult result,
-            CancellationToken cancellationToken)
+    private async Task FetchAndSaveCompaniesAsync(
+        ScbIngestRun run,
+        Dictionary<string, List<Workplace>> byCompany,
+        IProgress<IngestProgress> progress,
+        CancellationToken cancellationToken)
     {
-        var companies = new List<Company>();
-        var workplaces = new List<Workplace>();
-        var notEligible = new List<string>();
+        var batchSize = ingestOptions.Value.SaveBatchSize;
+        var batch = new SaveBatch();
         var done = 0;
         progress.Report(new IngestProgress(IngestPhases.Companies, 0, byCompany.Count));
 
         foreach (var (orgnr, companyWorkplaces) in byCompany)
         {
             var unit = await scb.GetLegalUnit(LegalPersonPrefix + orgnr, cancellationToken);
-            result.CompaniesFetched++;
+            run.Result.CompaniesFetched++;
             if (unit is null)
             {
-                result.CompanyNotFound++;
+                run.Result.CompanyNotFound++;
             }
 
-            if (unit is not null && ToEligibleCompany(orgnr, unit, sni, now, result) is { } company)
+            if (unit is not null
+                && ToEligibleCompany(orgnr, unit, run.Sni, run.StartedAt, run.Result) is { } company)
             {
-                companies.Add(company);
-                workplaces.AddRange(companyWorkplaces);
+                batch.Companies.Add(company);
+                batch.Workplaces.AddRange(companyWorkplaces);
             }
             else
             {
                 // Fail closed: also removes the company if an earlier run stored it.
-                notEligible.Add(orgnr);
+                batch.NotEligible.Add(orgnr);
             }
 
             done++;
+            if (batch.Count >= batchSize || done == byCompany.Count)
+            {
+                await SaveBatchAsync(run, batch, cancellationToken);
+                batch = new SaveBatch();
+            }
+
             progress.Report(new IngestProgress(IngestPhases.Companies, done, byCompany.Count));
         }
-
-        return (companies, workplaces, notEligible);
     }
 
     /// <summary>The company to store, or null (and a count) if it may not be stored.</summary>
@@ -245,50 +286,40 @@ public sealed partial class ScbIngestService(
     }
 
     /// <summary>
-    /// Steps 5-7 in one transaction, so a failed or cancelled run leaves the tables as they
-    /// were.
+    /// Step 5: one batch in one transaction. A batch is either saved whole or not at all, and
+    /// once committed it stays, also if the job fails later (D19).
     /// </summary>
-    private async Task SaveAsync(
-        string sni,
-        HashSet<string> wanted,
-        List<Company> companies,
-        List<Workplace> workplaces,
-        List<string> notEligible,
-        DateTimeOffset now,
-        ScbIngestResult result,
+    private async Task SaveBatchAsync(
+        ScbIngestRun run,
+        SaveBatch batch,
         CancellationToken cancellationToken)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
 
-        // A company SCB says may no longer be shown goes completely, with its workplaces in
-        // other municipalities and its financial facts (ON DELETE CASCADE).
-        result.CompaniesDeleted += await db.Companies
-            .Where(c => notEligible.Contains(c.Orgnr))
-            .ExecuteDeleteAsync(cancellationToken);
+        // A company SCB says may no longer be shown goes at once, not at the end (fail
+        // closed): with its workplaces in other municipalities, its financial facts and its
+        // outreach (ON DELETE CASCADE).
+        var notEligible = batch.NotEligible;
+        if (notEligible.Count > 0)
+        {
+            run.Result.CompaniesDeleted += await db.Companies
+                .Where(c => notEligible.Contains(c.Orgnr))
+                .ExecuteDeleteAsync(cancellationToken);
+        }
 
-        await UpsertCompaniesAsync(companies, cancellationToken);
-        await UpsertWorkplacesAsync(workplaces, cancellationToken);
-        await UpsertCoverageAsync(sni, wanted, now, cancellationToken);
+        await UpsertCompaniesAsync(batch.Companies, cancellationToken);
+        await UpsertWorkplacesAsync(batch.Workplaces, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
-        result.CompaniesStored = companies.Count;
-        result.WorkplacesStored = workplaces.Count;
-
-        // Step 6: what SCB no longer lists in the requested municipalities is gone. Other
-        // municipalities belong to other searches and are left alone.
-        var municipalities = wanted.ToList();
-        var seen = workplaces.Select(w => w.Cfar).ToList();
-        result.WorkplacesDeleted = await db.Workplaces
-            .Where(w => w.Sni == sni
-                && municipalities.Contains(w.Municipality)
-                && !seen.Contains(w.Cfar))
-            .ExecuteDeleteAsync(cancellationToken);
-
-        // A company is only shown through its workplaces (D15), so one without any goes too.
-        result.CompaniesDeleted += await db.Companies
-            .Where(c => !db.Workplaces.Any(w => w.Orgnr == c.Orgnr))
-            .ExecuteDeleteAsync(cancellationToken);
-
         await transaction.CommitAsync(cancellationToken);
+
+        // The rows are saved, so there is no reason to keep tracking them. Without this the
+        // DbContext would hold every company of a large search until the job ends.
+        db.ChangeTracker.Clear();
+
+        run.Result.CompaniesStored += batch.Companies.Count;
+        run.Result.WorkplacesStored += batch.Workplaces.Count;
+        run.Orgnrs.UnionWith(batch.Companies.Select(c => c.Orgnr));
+        run.Cfars.UnionWith(batch.Workplaces.Select(w => w.Cfar));
     }
 
     private async Task UpsertCompaniesAsync(
@@ -338,29 +369,28 @@ public sealed partial class ScbIngestService(
 
     /// <summary>
     /// Step 7: every requested municipality is fresh now, also one where nothing matched,
-    /// so the next search there doesn't start a new ingest (D6).
+    /// so the next search there doesn't start a new ingest (D6). The time is when the run
+    /// started, because that is how old the data is.
     /// </summary>
     private async Task UpsertCoverageAsync(
-        string sni,
-        HashSet<string> municipalities,
-        DateTimeOffset now,
+        ScbIngestRun run,
         CancellationToken cancellationToken)
     {
-        foreach (var municipality in municipalities)
+        foreach (var municipality in run.Municipalities)
         {
-            var coverage = await db.Coverage.FindAsync([sni, municipality], cancellationToken);
+            var coverage = await db.Coverage.FindAsync([run.Sni, municipality], cancellationToken);
             if (coverage is null)
             {
                 db.Coverage.Add(new Coverage
                 {
-                    Sni = sni,
+                    Sni = run.Sni,
                     Municipality = municipality,
-                    FetchedAt = now,
+                    FetchedAt = run.StartedAt,
                 });
             }
             else
             {
-                coverage.FetchedAt = now;
+                coverage.FetchedAt = run.StartedAt;
             }
         }
     }
@@ -412,10 +442,33 @@ public sealed partial class ScbIngestService(
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "SCB ingest for SNI {Sni} in {MunicipalityCount} municipalities: {Result}")]
-    private static partial void LogFinished(
+        Message = "SCB ingest for SNI {Sni} in {MunicipalityCount} municipalities saved: {Result}")]
+    private static partial void LogSaved(
         ILogger logger,
         string sni,
         int municipalityCount,
         ScbIngestResult result);
+
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "SCB ingest for SNI {Sni} in {MunicipalityCount} municipalities completed: {Result}")]
+    private static partial void LogCompleted(
+        ILogger logger,
+        string sni,
+        int municipalityCount,
+        ScbIngestResult result);
+
+    /// <summary>The companies fetched since the last commit.</summary>
+    private sealed class SaveBatch
+    {
+        public List<Company> Companies { get; } = [];
+
+        public List<Workplace> Workplaces { get; } = [];
+
+        /// <summary>Orgnr that may not be shown, so they are deleted if stored.</summary>
+        public List<string> NotEligible { get; } = [];
+
+        /// <summary>How many SCB calls this batch holds, stored or not.</summary>
+        public int Count => Companies.Count + NotEligible.Count;
+    }
 }
