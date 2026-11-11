@@ -53,7 +53,7 @@ public sealed class IngestWorkerTests(IngestPostgresFixture postgres)
         Assert.Equal(3, succeeded.Total);
         Assert.Equal([$"{Sni}: {Stockholm}, {Solna}"], _pipeline.Calls);
     }
-    
+
     [Fact]
     public async Task A_cancelled_queued_job_is_never_started_and_the_next_one_runs()
     {
