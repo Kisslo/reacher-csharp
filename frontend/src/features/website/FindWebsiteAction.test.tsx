@@ -207,6 +207,48 @@ describe('FindWebsiteAction', () => {
         expect(onAnalyze).toHaveBeenCalledWith('https://pasted.test/start');
     });
 
+    it('marks a company without a website and closes the dialog', async () => {
+        stubSearch(() =>
+            Response.json({ candidates: [], remainingMonthlyQuota: 4 }),
+        );
+        const user = userEvent.setup();
+        const onAnalyze = vi.fn();
+        const onNoWebsite = vi.fn();
+        renderWithQuery(
+            <WebsiteSearchProvider>
+                <FindWebsiteAction
+                    orgnr={orgnr}
+                    onAnalyze={onAnalyze}
+                    onNoWebsite={onNoWebsite}
+                />
+            </WebsiteSearchProvider>,
+        );
+        const dialog = await openPanel(user);
+        await within(dialog).findByText(websiteText.empty);
+
+        await user.click(
+            within(dialog).getByRole('button', { name: websiteText.noWebsite }),
+        );
+
+        expect(onNoWebsite).toHaveBeenCalledTimes(1);
+        expect(onAnalyze).not.toHaveBeenCalled();
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('hides the no-website button when the caller does not offer it', async () => {
+        stubSearch(() => Response.json(results));
+        const { user } = renderAction();
+
+        const dialog = await openPanel(user);
+        await within(dialog).findByText('example.test');
+
+        expect(
+            within(dialog).queryByRole('button', {
+                name: websiteText.noWebsite,
+            }),
+        ).toBeNull();
+    });
+
     it('shows the monthly quota error in Swedish', async () => {
         stubSearch(
             () =>

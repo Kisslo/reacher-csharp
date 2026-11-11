@@ -43,7 +43,13 @@ type CompanyTableProps = {
     scoreLookup?: (orgnr: string) => SessionScore | undefined;
     scoreSort?: ScoreSort | null;
     onScoreSort?: (column: ScoreColumn) => void;
+    /** Orgnrs pinned at the top because they were analysed this session (T2-12). */
+    analysed?: ReadonlySet<string>;
+    onRowChange?: (company: Company) => void;
 };
+
+/** Analyserad, then Behov and the four Lighthouse columns. */
+const sessionColumnCount = scoreColumns.length + 1;
 
 export function CompanyTable({
     companies,
@@ -54,6 +60,8 @@ export function CompanyTable({
     scoreLookup,
     scoreSort,
     onScoreSort,
+    analysed,
+    onRowChange,
 }: CompanyTableProps) {
     // While a score column is the sort, no company column stays selected.
     const companySortActive = scoreSort === null || scoreSort === undefined;
@@ -124,6 +132,9 @@ export function CompanyTable({
                             {column.header}
                         </th>
                     ))}
+                    {scoreLookup !== undefined && (
+                        <th scope="col">{companyText.columnAnalysed}</th>
+                    )}
                     {scoreLookup !== undefined &&
                         scoreSort !== undefined &&
                         onScoreSort !== undefined &&
@@ -154,6 +165,8 @@ export function CompanyTable({
                         extraColumns={extraColumns}
                         showScore={scoreLookup !== undefined}
                         score={scoreLookup?.(company.orgnr)}
+                        pinned={analysed?.has(company.orgnr) ?? false}
+                        onRowChange={onRowChange}
                     />
                 ))}
             </tbody>
@@ -248,6 +261,8 @@ type CompanyRowProps = {
     extraColumns: CompanyColumn[];
     showScore: boolean;
     score?: SessionScore;
+    pinned: boolean;
+    onRowChange?: (company: Company) => void;
 };
 
 function CompanyRow({
@@ -256,21 +271,23 @@ function CompanyRow({
     extraColumns,
     showScore,
     score,
+    pinned,
+    onRowChange,
 }: CompanyRowProps) {
     const [expanded, setExpanded] = useState(false);
     const detailsId = useId();
-    const outreach = useCompanyOutreach(company);
+    const outreach = useCompanyOutreach(company, onRowChange);
     const columnCount =
         fixedColumns +
         extraColumns.length +
-        (showScore ? scoreColumns.length : 0);
+        (showScore ? sessionColumnCount : 0);
     // Newest first. A missing figure stays missing, even if an older year has one,
     // because that is what the revenue and result filters compare against.
     const latest = company.financials.at(0);
 
     return (
         <Fragment>
-            <tr>
+            <tr className={pinned ? 'analysed-row' : undefined}>
                 <td>
                     <button
                         type="button"
@@ -326,6 +343,16 @@ function CompanyRow({
                 {extraColumns.map((column) => (
                     <td key={column.key}>{column.cell(company)}</td>
                 ))}
+                {showScore && (
+                    // Only whether it was analysed. Never the website or its address.
+                    <td>
+                        {score === undefined
+                            ? companyText.missingValue
+                            : score.kind === 'noWebsite'
+                              ? companyText.analysedNoWebsite
+                              : companyText.analysedYes}
+                    </td>
+                )}
                 {showScore &&
                     scoreColumns.map((column) => {
                         const value = scoreValue(score, column);

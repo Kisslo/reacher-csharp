@@ -71,11 +71,14 @@ function useWebsiteSearch(): WebsiteSearch {
 type FindWebsiteActionProps = {
     orgnr: string;
     onAnalyze: (url: string) => void;
+    /** Marks the company as analysed without a website. Hidden when not given. */
+    onNoWebsite?: () => void;
 };
 
 export function FindWebsiteAction({
     orgnr,
     onAnalyze,
+    onNoWebsite,
 }: FindWebsiteActionProps) {
     const search = useWebsiteSearch();
     const open = search.openOrgnr === orgnr;
@@ -94,6 +97,7 @@ export function FindWebsiteAction({
                     key={search.searchId}
                     orgnr={orgnr}
                     onAnalyze={onAnalyze}
+                    onNoWebsite={onNoWebsite}
                     onClose={search.close}
                 />
             )}
@@ -104,10 +108,16 @@ export function FindWebsiteAction({
 type WebsiteDialogProps = {
     orgnr: string;
     onAnalyze: (url: string) => void;
+    onNoWebsite?: () => void;
     onClose: () => void;
 };
 
-function WebsiteDialog({ orgnr, onAnalyze, onClose }: WebsiteDialogProps) {
+function WebsiteDialog({
+    orgnr,
+    onAnalyze,
+    onNoWebsite,
+    onClose,
+}: WebsiteDialogProps) {
     const dialogRef = useRef<HTMLDialogElement>(null);
     const titleId = useId();
     const pasteId = useId();
@@ -248,6 +258,23 @@ function WebsiteDialog({ orgnr, onAnalyze, onClose }: WebsiteDialogProps) {
                         </div>
                     )}
                 </div>
+
+                {onNoWebsite !== undefined && (
+                    <div className="website-none">
+                        <p className="website-note">
+                            {websiteText.noWebsiteHint}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onNoWebsite();
+                                onClose();
+                            }}
+                        >
+                            {websiteText.noWebsite}
+                        </button>
+                    </div>
+                )}
             </dialog>
         </>
     );

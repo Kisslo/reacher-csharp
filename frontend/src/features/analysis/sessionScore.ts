@@ -18,12 +18,22 @@ export type LighthouseSessionScores = {
     seo: number;
 };
 
-/** Kept for the browser session. Never includes the website URL (D9). */
-export type SessionScore = {
-    reworkScore: number;
-    analysedAt: string;
-    lighthouse: LighthouseSessionScores | null;
-};
+/**
+ * Kept for the browser session. Never includes the website URL (D9).
+ * `scored` is a finished analysis. `noWebsite` is the user saying the company
+ * has no website, so it counts as analysed but has no scores.
+ */
+export type SessionScore =
+    | {
+          kind: 'scored';
+          reworkScore: number;
+          analysedAt: string;
+          lighthouse: LighthouseSessionScores | null;
+      }
+    | {
+          kind: 'noWebsite';
+          analysedAt: string;
+      };
 
 export type ScoreSort = {
     column: ScoreColumn;
@@ -63,7 +73,7 @@ export function scoreValue(
     score: SessionScore | undefined,
     column: ScoreColumn,
 ): number | undefined {
-    if (score === undefined) {
+    if (score === undefined || score.kind === 'noWebsite') {
         return undefined;
     }
     if (column === 'rework') {

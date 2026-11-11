@@ -100,6 +100,15 @@
     margin-top: 1rem;
 }
 
+.website-none {
+    display: grid;
+    justify-items: start;
+    gap: 0.35rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #d5dbe6;
+}
+
 .website-paste label {
     font-weight: 600;
 }

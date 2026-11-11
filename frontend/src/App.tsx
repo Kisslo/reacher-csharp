@@ -29,7 +29,7 @@ function App() {
 }
 
 function AppContent() {
-    const { getScore, startAnalysis } = useAnalysis();
+    const { getScore, markNoWebsite, startAnalysis } = useAnalysis();
     const healthQuery = useQuery({
         queryKey: ['health'],
         queryFn: fetchHealth,
@@ -57,6 +57,9 @@ function AppContent() {
                                                     company.orgnr,
                                                     url,
                                                 )
+                                            }
+                                            onNoWebsite={() =>
+                                                markNoWebsite(company.orgnr)
                                             }
                                         />
                                     ),
