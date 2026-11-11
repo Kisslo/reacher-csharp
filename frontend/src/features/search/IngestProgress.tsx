@@ -6,9 +6,27 @@ type IngestProgressProps = {
     job: Job | undefined;
     failed: boolean;
     onRetry: () => void;
+    onCancel: () => void;
+    cancelPending: boolean;
+    cancelError: string | undefined;
 };
 
-export function IngestProgress({ job, failed, onRetry }: IngestProgressProps) {
+export function IngestProgress({
+    job,
+    failed,
+    onRetry,
+    onCancel,
+    cancelPending,
+    cancelError,
+}: IngestProgressProps) {
+    if (job?.status === 'cancelled') {
+        return (
+            <div className="ingest-progress">
+                <p role="status">{searchText.progressCancelled}</p>
+            </div>
+        );
+    }
+
     if (failed) {
         return (
             <div role="alert" className="ingest-progress">
@@ -25,6 +43,7 @@ export function IngestProgress({ job, failed, onRetry }: IngestProgressProps) {
     const total =
         job === undefined || job.total === null ? null : Number(job.total);
     const showBar = job?.status === 'running' && total !== null && total > 0;
+    const canCancel = job?.status === 'queued' || job?.status === 'running';
 
     return (
         <div className="ingest-progress">
@@ -37,6 +56,20 @@ export function IngestProgress({ job, failed, onRetry }: IngestProgressProps) {
                 />
             ) : (
                 <progress aria-label={searchText.progressLabel} />
+            )}
+            {canCancel && (
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    disabled={cancelPending}
+                >
+                    {searchText.cancel}
+                </button>
+            )}
+            {cancelError !== undefined && (
+                <p role="alert" className="field-error">
+                    {cancelError}
+                </p>
             )}
         </div>
     );
