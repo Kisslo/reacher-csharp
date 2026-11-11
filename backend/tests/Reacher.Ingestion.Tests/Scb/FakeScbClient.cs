@@ -16,6 +16,9 @@ internal sealed class FakeScbClient : IScbClient
     /// <summary>Every peOrgNr passed to <see cref="GetLegalUnit"/>, in order.</summary>
     public List<string> LegalUnitRequests { get; } = [];
 
+    /// <summary>Runs after each legal unit is asked for, e.g. to cancel the run part-way.</summary>
+    public Action<string>? OnLegalUnit { get; set; }
+
     public async IAsyncEnumerable<WorkplacePartial> GetWorkplacesBySni(
         string sni,
         [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -30,6 +33,8 @@ internal sealed class FakeScbClient : IScbClient
 
     public Task<LegalUnitFull?> GetLegalUnit(string peOrgNr, CancellationToken cancellationToken)
     {
+        // Like the real HttpClient: a cancelled run makes no further request.
+        cancellationToken.ThrowIfCancellationRequested();
         LegalUnitRequests.Add(peOrgNr);
 
         // The same guard as the real client, so a personnummer that got through fails loudly.
@@ -38,6 +43,7 @@ internal sealed class FakeScbClient : IScbClient
             throw new ArgumentException("Only a peOrgNr that starts with 16 may be fetched.");
         }
 
+        OnLegalUnit?.Invoke(peOrgNr);
         return Task.FromResult(LegalUnits.GetValueOrDefault(peOrgNr));
     }
 

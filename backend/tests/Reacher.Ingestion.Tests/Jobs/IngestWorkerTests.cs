@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Reacher.Data.Entities;
 using Reacher.Ingestion.Bolagsverket;
 using Reacher.Ingestion.Jobs;
+using Reacher.Ingestion.Options;
 using Reacher.Ingestion.Scb;
 using Reacher.Ingestion.Tests.Scb;
 using static Reacher.Ingestion.Tests.Scb.ScbTestData;
@@ -16,6 +17,8 @@ public sealed class IngestWorkerTests(IngestPostgresFixture postgres)
     private readonly FakePipeline _pipeline = new();
 
     private readonly ChannelIngestQueue _queue = new();
+
+    private readonly IngestJobCancellation _cancellations = new();
 
     public Task InitializeAsync() => postgres.ResetAsync();
 
@@ -49,6 +52,65 @@ public sealed class IngestWorkerTests(IngestPostgresFixture postgres)
         Assert.Equal(3, succeeded.Done);
         Assert.Equal(3, succeeded.Total);
         Assert.Equal([$"{Sni}: {Stockholm}, {Solna}"], _pipeline.Calls);
+    }
+    
+    [Fact]
+    public async Task A_cancelled_queued_job_is_never_started_and_the_next_one_runs()
+    {
+        var release = new TaskCompletionSource();
+        _pipeline.Run = (_, cancellationToken) => release.Task.WaitAsync(cancellationToken);
+        var first = await AddJobAsync(Stockholm);
+        var cancelled = await AddJobAsync(Solna);
+        var last = await AddJobAsync(Stockholm, Solna);
+
+        await using var worker = await StartWorkerAsync();
+        await _queue.EnqueueAsync(first, CancellationToken.None);
+        await _queue.EnqueueAsync(cancelled, CancellationToken.None);
+        await _queue.EnqueueAsync(last, CancellationToken.None);
+        await WaitForAsync(first, IngestJobStatus.Running);
+
+        Assert.Equal(CancelJobResult.Cancelled, await CancelAsync(cancelled));
+        release.SetResult();
+
+        await WaitForAsync(last, IngestJobStatus.Succeeded);
+        var row = await WaitForAsync(cancelled, IngestJobStatus.Cancelled);
+        Assert.Null(row.StartedAt);
+        Assert.Equal([$"{Sni}: {Stockholm}", $"{Sni}: {Stockholm}, {Solna}"], _pipeline.Calls);
+    }
+
+    [Fact]
+    public async Task A_cancelled_running_job_stops_and_the_next_one_runs()
+    {
+        var calls = 0;
+        _pipeline.Run = async (progress, cancellationToken) =>
+        {
+            if (++calls == 1)
+            {
+                progress.Report(new IngestProgress(IngestPhases.Companies, 2, 10));
+                // Stands in for SCB and Bolagsverket: runs until the job's token is cancelled.
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+            }
+        };
+        var running = await AddJobAsync(Stockholm);
+        var next = await AddJobAsync(Solna);
+
+        await using var worker = await StartWorkerAsync();
+        await _queue.EnqueueAsync(running, CancellationToken.None);
+        await _queue.EnqueueAsync(next, CancellationToken.None);
+        await WaitForAsync(running, IngestJobStatus.Running);
+
+        Assert.Equal(CancelJobResult.Cancelled, await CancelAsync(running));
+
+        await WaitForAsync(next, IngestJobStatus.Succeeded);
+        await using var db = postgres.CreateContext();
+        var cancelled = await db.IngestJobs.FindAsync(running);
+        Assert.NotNull(cancelled);
+        Assert.Equal(IngestJobStatus.Cancelled, cancelled.Status);
+        Assert.Null(cancelled.Error);
+        Assert.NotNull(cancelled.FinishedAt);
+        // Where it stopped, so the frontend can show how far it got.
+        Assert.Equal(IngestPhases.Companies, cancelled.Phase);
+        Assert.Equal(2, cancelled.Done);
     }
 
     [Fact]
@@ -137,6 +199,7 @@ public sealed class IngestWorkerTests(IngestPostgresFixture postgres)
         var worker = new IngestWorker(
             _queue,
             provider.GetRequiredService<IServiceScopeFactory>(),
+            _cancellations,
             TimeProvider.System,
             NullLogger<IngestWorker>.Instance);
         await worker.StartAsync(CancellationToken.None);
@@ -160,6 +223,20 @@ public sealed class IngestWorkerTests(IngestPostgresFixture postgres)
         db.IngestJobs.Add(job);
         await db.SaveChangesAsync();
         return job.Id;
+    }
+
+    /// <summary>Cancels the way the endpoint does: through the real coordinator.</summary>
+    private async Task<CancelJobResult> CancelAsync(Guid jobId)
+    {
+        await using var db = postgres.CreateContext();
+        // Fully qualified: inside Reacher.Ingestion, "Options" is our own options namespace.
+        var coordinator = new IngestCoordinator(
+            db,
+            _queue,
+            Microsoft.Extensions.Options.Options.Create(new IngestOptions()),
+            TimeProvider.System,
+            _cancellations);
+        return await coordinator.CancelAsync(jobId, CancellationToken.None);
     }
 
     /// <summary>Polls the row until it has the status, for at most 10 s.</summary>

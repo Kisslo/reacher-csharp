@@ -13,15 +13,18 @@ namespace Reacher.Ingestion.Jobs;
 /// Runs ingest jobs from <see cref="IIngestQueue"/>, one at a time, so SCB and Bolagsverket
 /// only ever see one ingest. Keeps <c>ingest_job</c> up to date:
 /// <c>queued</c> → <c>running</c> (progress about once a second) → <c>succeeded</c> or
-/// <c>failed</c>.
+/// <c>failed</c>. A user can move a queued or running job to <c>cancelled</c> (J-17).
 /// </summary>
 /// <remarks>
 /// A singleton (hosted service), so each job gets its own DI scope and with it its own
-/// <see cref="ReacherDbContext"/>. A failing job never stops the worker.
+/// <see cref="ReacherDbContext"/>. A failing or cancelled job never stops the worker.
+/// Status changes are single <c>UPDATE ... WHERE status = ...</c> statements, so a cancel
+/// that arrives at the same moment is never overwritten.
 /// </remarks>
 public sealed partial class IngestWorker(
     IIngestQueue queue,
     IServiceScopeFactory scopes,
+    IngestJobCancellation cancellations,
     TimeProvider time,
     ILogger<IngestWorker> logger) : BackgroundService
 {
@@ -46,6 +49,7 @@ public sealed partial class IngestWorker(
     /// <summary>
     /// The queue lives in memory, so a restart empties it. A job that was running can't be
     /// resumed and is marked failed. A job that was still queued is put back in the queue.
+    /// A cancelled job is left alone.
     /// </summary>
     private async Task RecoverAsync(CancellationToken stoppingToken)
     {
@@ -89,6 +93,11 @@ public sealed partial class IngestWorker(
     {
         // Outside the try, so a failed job also gets its last progress: where it stopped.
         var progress = new LatestProgress();
+
+        // The job's own token: cancelled by IngestCoordinator.CancelAsync, or when the API
+        // stops. Added before the job is marked running, so a cancel in between still lands.
+        using var jobCancellation = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        cancellations.Add(jobId, jobCancellation);
         try
         {
             if (await MarkRunningAsync(jobId, stoppingToken) is not { } job)
@@ -102,7 +111,11 @@ public sealed partial class IngestWorker(
             {
                 await using var scope = scopes.CreateAsyncScope();
                 var pipeline = scope.ServiceProvider.GetRequiredService<IIngestPipeline>();
-                await pipeline.RunAsync(job.Sni, job.Municipalities, progress, stoppingToken);
+                await pipeline.RunAsync(
+                    job.Sni,
+                    job.Municipalities,
+                    progress,
+                    jobCancellation.Token);
             }
             finally
             {
@@ -110,17 +123,28 @@ public sealed partial class IngestWorker(
                 await flushing;
             }
 
-            var last = progress.Take();
-            await UpdateAsync(
+            var succeeded = await FinishAsync(
                 jobId,
-                row =>
-                {
-                    Apply(row, last);
-                    row.Status = IngestJobStatus.Succeeded;
-                    row.FinishedAt = time.GetUtcNow();
-                },
+                IngestJobStatus.Succeeded,
+                error: null,
+                progress.Take(),
                 stoppingToken);
-            LogSucceeded(logger, jobId);
+            if (succeeded)
+            {
+                LogSucceeded(logger, jobId);
+            }
+            else
+            {
+                // Cancelled just as the pipeline finished: the cancel wins.
+                LogCancelled(logger, jobId);
+            }
+        }
+        catch (Exception) when (
+            jobCancellation.IsCancellationRequested && !stoppingToken.IsCancellationRequested)
+        {
+            // A user cancelled. The row already says cancelled; only keep where it stopped.
+            await KeepProgressAsync(jobId, progress.Take(), stoppingToken);
+            LogCancelled(logger, jobId);
         }
         catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
         {
@@ -129,25 +153,39 @@ public sealed partial class IngestWorker(
             LogFailed(logger, jobId, reason);
             await MarkFailedAsync(jobId, reason, progress.Take(), stoppingToken);
         }
+        finally
+        {
+            cancellations.Remove(jobId);
+        }
 
         // On shutdown the job is left as running, and the next start marks it failed.
     }
 
-    /// <summary>The job, now running. Null if it isn't queued: already run, or queued twice.</summary>
+    /// <summary>
+    /// The job, now running. Null if it isn't queued: already run, queued twice, or cancelled
+    /// before the worker got to it.
+    /// </summary>
     private async Task<IngestJob?> MarkRunningAsync(Guid jobId, CancellationToken stoppingToken)
     {
         await using var scope = scopes.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ReacherDbContext>();
-        var job = await db.IngestJobs.FindAsync([jobId], stoppingToken);
-        if (job is not { Status: IngestJobStatus.Queued })
+        DateTimeOffset? startedAt = time.GetUtcNow();
+
+        // One UPDATE ... WHERE status = 'queued'. Loading the row and saving it could write
+        // running over a cancel that came in between.
+        var changed = await db.IngestJobs
+            .Where(j => j.Id == jobId && j.Status == IngestJobStatus.Queued)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(j => j.Status, IngestJobStatus.Running)
+                    .SetProperty(j => j.StartedAt, startedAt),
+                stoppingToken);
+        if (changed == 0)
         {
             return null;
         }
 
-        job.Status = IngestJobStatus.Running;
-        job.StartedAt = time.GetUtcNow();
-        await db.SaveChangesAsync(stoppingToken);
-        return job;
+        return await db.IngestJobs.AsNoTracking().FirstAsync(j => j.Id == jobId, stoppingToken);
     }
 
     /// <summary>Writes the newest progress once a second until the job is done.</summary>
@@ -191,16 +229,7 @@ public sealed partial class IngestWorker(
     {
         try
         {
-            await UpdateAsync(
-                jobId,
-                row =>
-                {
-                    Apply(row, last);
-                    row.Status = IngestJobStatus.Failed;
-                    row.Error = reason;
-                    row.FinishedAt = time.GetUtcNow();
-                },
-                stoppingToken);
+            await FinishAsync(jobId, IngestJobStatus.Failed, reason, last, stoppingToken);
         }
         catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
         {
@@ -209,9 +238,67 @@ public sealed partial class IngestWorker(
         }
     }
 
+    /// <summary>Saves where a cancelled job stopped. Never stops the worker.</summary>
+    private async Task KeepProgressAsync(
+        Guid jobId,
+        IngestProgress? last,
+        CancellationToken stoppingToken)
+    {
+        if (last is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await UpdateAsync(jobId, row => Apply(row, last), stoppingToken);
+        }
+        catch (Exception exception) when (!stoppingToken.IsCancellationRequested)
+        {
+            LogProgressFailed(logger, jobId, SafeReason(exception));
+        }
+    }
+
+    /// <summary>
+    /// Running → <paramref name="status"/> in one <c>UPDATE ... WHERE status = 'running'</c>.
+    /// False if the job is no longer running, because a user cancelled it.
+    /// </summary>
+    private async Task<bool> FinishAsync(
+        Guid jobId,
+        string status,
+        string? error,
+        IngestProgress? last,
+        CancellationToken stoppingToken)
+    {
+        await using var scope = scopes.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ReacherDbContext>();
+        DateTimeOffset? finishedAt = time.GetUtcNow();
+
+        var changed = await db.IngestJobs
+            .Where(j => j.Id == jobId && j.Status == IngestJobStatus.Running)
+            .ExecuteUpdateAsync(
+                setters =>
+                {
+                    setters
+                        .SetProperty(j => j.Status, status)
+                        .SetProperty(j => j.Error, error)
+                        .SetProperty(j => j.FinishedAt, finishedAt);
+                    if (last is not null)
+                    {
+                        setters
+                            .SetProperty(j => j.Phase, last.Phase)
+                            .SetProperty(j => j.Done, last.Done)
+                            .SetProperty(j => j.Total, last.Total);
+                    }
+                },
+                stoppingToken);
+        return changed == 1;
+    }
+
     /// <summary>
     /// Loads the row in a scope of its own, changes it and saves it. The pipeline's
-    /// DbContext is busy while the job runs, and a DbContext is not thread-safe.
+    /// DbContext is busy while the job runs, and a DbContext is not thread-safe. EF Core only
+    /// writes the columns that changed, so a progress update never touches the status.
     /// </summary>
     private async Task UpdateAsync(
         Guid jobId,
@@ -264,6 +351,9 @@ public sealed partial class IngestWorker(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Ingest job {JobId} succeeded")]
     private static partial void LogSucceeded(ILogger logger, Guid jobId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Ingest job {JobId} was cancelled")]
+    private static partial void LogCancelled(ILogger logger, Guid jobId);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Ingest job {JobId} failed: {Reason}")]
     private static partial void LogFailed(ILogger logger, Guid jobId, string reason);
