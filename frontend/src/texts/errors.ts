@@ -10,6 +10,7 @@ const errorMessages: Record<string, string> = {
         'Filtren är inte giltiga. Kontrollera värdena och försök igen.',
     invalid_sni: 'SNI-koden måste bestå av fem siffror.',
     invalid_url: 'Webbadressen är inte giltig.',
+    job_not_cancellable: 'Sökningen är redan avslutad och kan inte avbrytas.',
     job_not_found: 'Sökjobbet hittades inte.',
     note_rejected:
         'Anteckningen sparades inte. Ta bort webbadresser och personnummer, och håll den under 500 tecken.',

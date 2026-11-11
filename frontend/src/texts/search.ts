@@ -33,4 +33,6 @@ export const searchText = {
             ? 'Hämtar årsredovisningar…'
             : `Hämtar årsredovisningar (${done} av ${total})…`,
     progressFailed: 'Hämtningen misslyckades',
+    progressCancelled: 'Sökningen avbröts',
+    cancel: 'Avbryt sökning',
 } as const;

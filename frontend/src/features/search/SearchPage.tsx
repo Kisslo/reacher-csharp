@@ -8,7 +8,12 @@ import {
 } from '@tanstack/react-query';
 
 import { ApiError } from '../../api/client';
-import { fetchCoverage, fetchJob, startSearch } from '../../api/searches';
+import {
+    cancelJob,
+    fetchCoverage,
+    fetchJob,
+    startSearch,
+} from '../../api/searches';
 import type { Coverage, StartSearchRequest } from '../../api/searches';
 import { searchText } from '../../texts/search';
 import { sniQuery } from './codeQueries';
@@ -73,16 +78,36 @@ export function SearchPage({ renderResults }: SearchPageProps) {
                 : ({ signal }) => fetchJob(jobId, signal),
         refetchInterval: (query) => {
             const status = query.state.data?.status;
+            // succeeded and failed are done. cancelled is done too, but it is
+            // not a failure: the progress view says the search was cancelled.
             const finished =
                 query.state.status === 'error' ||
                 status === 'succeeded' ||
-                status === 'failed';
+                status === 'failed' ||
+                status === 'cancelled';
             return finished ? false : pollIntervalMs;
         },
     });
 
+    const cancelMutation = useMutation({
+        mutationFn: cancelJob,
+        onSuccess: async (job, cancelledJobId) => {
+            // Drop an in-flight poll so it cannot write "running" back over
+            // "cancelled" and keep the progress going.
+            await queryClient.cancelQueries({
+                queryKey: ['jobs', cancelledJobId],
+            });
+            queryClient.setQueryData(['jobs', cancelledJobId], job);
+        },
+    });
+
     const jobSucceeded = jobQuery.data?.status === 'succeeded';
-    const jobFailed = jobQuery.isError || jobQuery.data?.status === 'failed';
+    // The failure view's retry starts a new search. A cancelled job stays on
+    // its own message, so cancel does not start one.
+    const jobCancelled = jobQuery.data?.status === 'cancelled';
+    const jobFailed =
+        !jobCancelled &&
+        (jobQuery.isError || jobQuery.data?.status === 'failed');
     const readySearch = getReadySearch(stage, jobSucceeded);
 
     const coverageQuery = useQuery({
@@ -121,6 +146,7 @@ export function SearchPage({ renderResults }: SearchPageProps) {
         }
 
         writeSearchToUrl(request);
+        cancelMutation.reset();
         searchMutation.mutate(request);
     }
 
@@ -189,6 +215,18 @@ export function SearchPage({ renderResults }: SearchPageProps) {
                     failed={jobFailed}
                     onRetry={() =>
                         void runSearch({ ...stage.search, refresh: false })
+                    }
+                    onCancel={() => {
+                        if (jobId === null || cancelMutation.isPending) {
+                            return;
+                        }
+                        cancelMutation.mutate(jobId);
+                    }}
+                    cancelPending={cancelMutation.isPending}
+                    cancelError={
+                        cancelMutation.error instanceof Error
+                            ? errorText(cancelMutation.error)
+                            : undefined
                     }
                 />
             )}

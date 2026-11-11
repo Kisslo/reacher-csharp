@@ -26,6 +26,12 @@ export function fetchJob(jobId: string, signal?: AbortSignal): Promise<Job> {
     return apiFetch<Job>(`/api/jobs/${encodeURIComponent(jobId)}`, { signal });
 }
 
+export function cancelJob(jobId: string): Promise<Job> {
+    return apiFetch<Job>(`/api/jobs/${encodeURIComponent(jobId)}/cancel`, {
+        method: 'POST',
+    });
+}
+
 /**
  * The contract only has coverage on GET /api/companies, so we ask for one row
  * and keep the coverage part.
