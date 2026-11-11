@@ -85,6 +85,68 @@ public sealed class SearchEndpointTests
     }
 
     [Fact]
+    public async Task Cancel_stops_a_fake_job_and_a_second_cancel_still_returns_cancelled()
+    {
+        var clock = new ManualTimeProvider(
+            new DateTimeOffset(2026, 10, 29, 8, 0, 0, TimeSpan.Zero));
+        using var factory = CreateFakeHost(clock);
+        using var client = factory.CreateClient();
+        var jobId = await StartJob(client);
+
+        // Two seconds in, the fake job is running.
+        clock.UtcNow = clock.UtcNow.AddSeconds(2);
+        var cancelled = await Cancel(client, jobId);
+
+        Assert.Equal(HttpStatusCode.OK, cancelled.StatusCode);
+        var body = await cancelled.Content.ReadFromJsonAsync<JsonObject>(Json);
+        Assert.NotNull(body);
+        Assert.Equal(jobId, body["jobId"]!.GetValue<Guid>());
+        Assert.Equal("cancelled", body["status"]!.GetValue<string>());
+        Assert.NotNull(body["startedAt"]);
+        Assert.NotNull(body["finishedAt"]);
+
+        // Later polls don't move a cancelled job on to succeeded.
+        clock.UtcNow = clock.UtcNow.AddSeconds(10);
+        var polled = await client.GetFromJsonAsync<JsonObject>(
+            new Uri($"/api/jobs/{jobId}", UriKind.Relative),
+            Json);
+        Assert.Equal("cancelled", polled!["status"]!.GetValue<string>());
+
+        var again = await Cancel(client, jobId);
+        Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+        var againBody = await again.Content.ReadFromJsonAsync<JsonObject>(Json);
+        Assert.Equal("cancelled", againBody!["status"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Cancelling_a_finished_job_returns_409()
+    {
+        var clock = new ManualTimeProvider(
+            new DateTimeOffset(2026, 10, 29, 8, 0, 0, TimeSpan.Zero));
+        using var factory = CreateFakeHost(clock);
+        using var client = factory.CreateClient();
+        var jobId = await StartJob(client);
+        clock.UtcNow = clock.UtcNow.AddSeconds(5);
+
+        var response = await Cancel(client, jobId);
+
+        var body = await ReadProblem(response, HttpStatusCode.Conflict);
+        Assert.Equal("job_not_cancellable", body["code"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task Cancelling_an_unknown_job_returns_404()
+    {
+        using var factory = CreateFakeHost();
+        using var client = factory.CreateClient();
+
+        var response = await Cancel(client, Guid.NewGuid());
+
+        var body = await ReadProblem(response, HttpStatusCode.NotFound);
+        Assert.Equal("job_not_found", body["code"]!.GetValue<string>());
+    }
+
+    [Fact]
     public async Task Missing_fields_and_bad_shapes_return_400()
     {
         using var factory = CreateFakeHost();
@@ -170,6 +232,7 @@ public sealed class SearchEndpointTests
         Assert.NotNull(body);
         Assert.NotNull(body["paths"]?["/api/searches"]?["post"]);
         Assert.NotNull(body["paths"]?["/api/jobs/{jobId}"]?["get"]);
+        Assert.NotNull(body["paths"]?["/api/jobs/{jobId}/cancel"]?["post"]);
     }
 
     [Fact]
@@ -234,6 +297,17 @@ public sealed class SearchEndpointTests
             "/api/searches",
             new SearchRequest(sni, [.. municipalities], refresh),
             Json);
+
+    private static async Task<Guid> StartJob(HttpClient client)
+    {
+        var response = await PostSearch(client, "96210", ["0180"], refresh: false);
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonObject>(Json);
+        return body!["jobId"]!.GetValue<Guid>();
+    }
+
+    private static Task<HttpResponseMessage> Cancel(HttpClient client, Guid jobId) =>
+        client.PostAsync(new Uri($"/api/jobs/{jobId}/cancel", UriKind.Relative), content: null);
 
     private static async Task<JsonObject> ReadProblem(
         HttpResponseMessage response,

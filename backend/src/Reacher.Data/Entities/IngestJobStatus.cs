@@ -7,4 +7,7 @@ public static class IngestJobStatus
     public const string Running = "running";
     public const string Succeeded = "succeeded";
     public const string Failed = "failed";
+
+    /// <summary>Stopped by a user (J-17). Rows already committed stay.</summary>
+    public const string Cancelled = "cancelled";
 }

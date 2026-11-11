@@ -148,6 +148,37 @@ public sealed class ScbIngestServiceTests(IngestPostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_cancelled_run_stops_calling_SCB_and_keeps_what_was_saved()
+    {
+        var scb = new FakeScbClient
+        {
+            Workplaces = { Workplace("90000001", CompanyA), Workplace("90000002", CompanyA) },
+            LegalUnits = { [CompanyA] = LegalUnit(CompanyA) },
+        };
+        await Run(scb, [Stockholm]);
+
+        // SCB no longer lists one workplace, and company B in Solna is new.
+        scb.Workplaces.RemoveAll(w => w.CfarNr == "90000002");
+        scb.Workplaces.Add(Workplace("90000003", CompanyB, municipality: Solna));
+        scb.LegalUnits[CompanyB] = LegalUnit(CompanyB);
+        scb.LegalUnitRequests.Clear();
+        using var cancel = new CancellationTokenSource();
+        scb.OnLegalUnit = _ => cancel.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => Run(scb, [Stockholm, Solna], cancellationToken: cancel.Token));
+
+        // Cancelled after the first company: no further SCB calls.
+        Assert.Single(scb.LegalUnitRequests);
+        await using var db = postgres.CreateContext();
+        // The workplace SCB stopped listing is not deleted, and Solna is not marked fresh.
+        Assert.Equal(
+            ["90000001", "90000002"],
+            await db.Workplaces.OrderBy(w => w.Cfar).Select(w => w.Cfar).ToListAsync());
+        Assert.Equal([Stockholm], await db.Coverage.Select(c => c.Municipality).ToListAsync());
+    }
+
+    [Fact]
     public async Task Cleanup_leaves_municipalities_that_were_not_requested_alone()
     {
         var scb = new FakeScbClient
@@ -303,7 +334,8 @@ public sealed class ScbIngestServiceTests(IngestPostgresFixture postgres)
         FakeScbClient scb,
         string[] municipalities,
         ILogger<ScbIngestService>? logger = null,
-        IProgress<IngestProgress>? progress = null)
+        IProgress<IngestProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         await using var db = postgres.CreateContext();
         // Fully qualified: inside Reacher.Ingestion, "Options" is our own options namespace.
@@ -316,6 +348,6 @@ public sealed class ScbIngestServiceTests(IngestPostgresFixture postgres)
             new FixedTimeProvider(Now),
             logger ?? NullLogger<ScbIngestService>.Instance);
         return await service.RunAsync(
-            Sni, municipalities, progress ?? new RecordingProgress(), CancellationToken.None);
+            Sni, municipalities, progress ?? new RecordingProgress(), cancellationToken);
     }
 }

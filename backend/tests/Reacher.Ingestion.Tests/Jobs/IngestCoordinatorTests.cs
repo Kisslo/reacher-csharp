@@ -12,6 +12,8 @@ public sealed class IngestCoordinatorTests(IngestPostgresFixture postgres)
 {
     private readonly EnqueueRecorder _queue = new();
 
+    private readonly IngestJobCancellation _cancellations = new();
+
     public Task InitializeAsync() => postgres.ResetAsync();
 
     public Task DisposeAsync() => Task.CompletedTask;
@@ -92,6 +94,7 @@ public sealed class IngestCoordinatorTests(IngestPostgresFixture postgres)
     [Theory]
     [InlineData(IngestJobStatus.Succeeded)]
     [InlineData(IngestJobStatus.Failed)]
+    [InlineData(IngestJobStatus.Cancelled)]
     public async Task A_finished_job_is_not_reused(string status)
     {
         var finished = await AddJobAsync(status, Stockholm);
@@ -119,18 +122,83 @@ public sealed class IngestCoordinatorTests(IngestPostgresFixture postgres)
         await Assert.ThrowsAsync<ArgumentException>(() => Request([]));
     }
 
+    [Theory]
+    [InlineData(IngestJobStatus.Queued)]
+    [InlineData(IngestJobStatus.Running)]
+    public async Task A_queued_or_running_job_can_be_cancelled(string status)
+    {
+        var jobId = await AddJobAsync(status, Stockholm);
+
+        var result = await Cancel(jobId);
+
+        Assert.Equal(CancelJobResult.Cancelled, result);
+        await using var db = postgres.CreateContext();
+        var job = await db.IngestJobs.SingleAsync();
+        Assert.Equal(IngestJobStatus.Cancelled, job.Status);
+        Assert.Equal(Now, job.FinishedAt);
+    }
+
+    [Fact]
+    public async Task Cancelling_a_running_job_cancels_its_token()
+    {
+        var jobId = await AddJobAsync(IngestJobStatus.Running, Stockholm);
+        using var token = new CancellationTokenSource();
+        _cancellations.Add(jobId, token);
+
+        await Cancel(jobId);
+
+        Assert.True(token.IsCancellationRequested);
+    }
+
+    [Fact]
+    public async Task A_second_cancel_returns_cancelled()
+    {
+        var jobId = await AddJobAsync(IngestJobStatus.Cancelled, Stockholm);
+
+        Assert.Equal(CancelJobResult.Cancelled, await Cancel(jobId));
+    }
+
+    [Theory]
+    [InlineData(IngestJobStatus.Succeeded)]
+    [InlineData(IngestJobStatus.Failed)]
+    public async Task A_finished_job_is_not_cancellable(string status)
+    {
+        var jobId = await AddJobAsync(status, Stockholm);
+
+        var result = await Cancel(jobId);
+
+        Assert.Equal(CancelJobResult.NotCancellable, result);
+        await using var db = postgres.CreateContext();
+        Assert.Equal(status, (await db.IngestJobs.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task An_unknown_job_is_not_found()
+    {
+        Assert.Equal(CancelJobResult.NotFound, await Cancel(Guid.NewGuid()));
+    }
+
     private async Task<IngestRequestResult> Request(string[] municipalities, bool refresh = false)
     {
         await using var db = postgres.CreateContext();
+        return await CreateCoordinator(db).RequestAsync(
+            Sni, municipalities, refresh, CancellationToken.None);
+    }
+
+    private async Task<CancelJobResult> Cancel(Guid jobId)
+    {
+        await using var db = postgres.CreateContext();
+        return await CreateCoordinator(db).CancelAsync(jobId, CancellationToken.None);
+    }
+
+    private IngestCoordinator CreateCoordinator(Reacher.Data.ReacherDbContext db) =>
         // Fully qualified: inside Reacher.Ingestion, "Options" is our own options namespace.
-        var coordinator = new IngestCoordinator(
+        new(
             db,
             _queue,
             Microsoft.Extensions.Options.Options.Create(new IngestOptions { FreshnessDays = 30 }),
-            new FixedTimeProvider(Now));
-        return await coordinator.RequestAsync(
-            Sni, municipalities, refresh, CancellationToken.None);
-    }
+            new FixedTimeProvider(Now),
+            _cancellations);
 
     private async Task AddCoverageAsync(string municipality, int daysOld)
     {

@@ -15,6 +15,12 @@ public interface IIngestCoordinator
         IReadOnlyCollection<string> municipalities,
         bool refresh,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Cancels a queued or running job (J-17). A queued job is never started. A running job
+    /// stops at its next SCB or Bolagsverket call, and rows it already committed stay.
+    /// </summary>
+    Task<CancelJobResult> CancelAsync(Guid jobId, CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -27,4 +33,17 @@ public sealed record IngestRequestResult(Guid? JobId, string Status)
     public const string Fresh = "fresh";
 
     public static IngestRequestResult FreshData { get; } = new(null, Fresh);
+}
+
+/// <summary>What <see cref="IIngestCoordinator.CancelAsync"/> found.</summary>
+public enum CancelJobResult
+{
+    /// <summary>The job is cancelled now, or already was.</summary>
+    Cancelled,
+
+    /// <summary>No job has this id.</summary>
+    NotFound,
+
+    /// <summary>The job already succeeded or failed.</summary>
+    NotCancellable,
 }
