@@ -56,7 +56,15 @@ function applyOutreach(company: Company, body: OutreachUpdate): Company {
     };
 }
 
-export function useCompanyOutreach(company: Company) {
+/**
+ * `onRowChange` gets the optimistic row, and the old row again if the save fails.
+ * The company list uses it for a pinned row from another page (T2-12), which is
+ * not in the cached page the optimistic update below writes to.
+ */
+export function useCompanyOutreach(
+    company: Company,
+    onRowChange?: (company: Company) => void,
+) {
     const queryClient = useQueryClient();
     const savedNote = company.note ?? '';
     const [noteDraft, setNoteDraft] = useState(savedNote);
@@ -103,11 +111,18 @@ export function useCompanyOutreach(company: Company) {
                 },
             );
 
-            return { snapshots, previousNote };
+            onRowChange?.(applyOutreach(company, body));
+
+            // By onError the row has re-rendered with the optimistic value, so
+            // keep the row from before the change here instead of in the closure.
+            return { snapshots, previousNote, previousRow: company };
         },
         onError: (saveError, body, context) => {
             for (const [key, data] of context?.snapshots ?? []) {
                 queryClient.setQueryData(key, data);
+            }
+            if (context !== undefined) {
+                onRowChange?.(context.previousRow);
             }
             // A rejected note must not replace the one that was already saved.
             if (

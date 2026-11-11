@@ -56,7 +56,7 @@ Folder paths are a suggestion until J-02 lands. Update the table if they change.
 
 ## Frontend rules (week 47)
 - Candidates and analysis results live only in React state or context. Brave and analysis calls are mutations (`useMutation`), not cached queries. Nothing goes in `localStorage`, `sessionStorage`, the page URL or router state.
-- The session score store maps `orgnr → { reworkScore, analysedAt, lighthouse }`, without the URL. `lighthouse` is `{ performance, accessibility, bestPractices, seo }` or null when PageSpeed did not return scores (T2-11).
+- The session score store maps `orgnr → { kind: 'scored', reworkScore, analysedAt, lighthouse }` or `{ kind: 'noWebsite', analysedAt }`, without the URL. `lighthouse` is `{ performance, accessibility, bestPractices, seo }` or null when PageSpeed did not return scores (T2-11). `noWebsite` is set by the "Ingen webbplats" button and counts as analysed (T2-12).
 - External links use `target="_blank" rel="noopener noreferrer"`.
 - All user-facing strings in Swedish, in `frontend/src/texts/`. API error `code`s are translated in `src/texts/errors.ts`.
 
@@ -74,7 +74,7 @@ Folder paths are a suggestion until J-02 lands. Update the table if they change.
 | T2-09 | [#24](https://github.com/Kisslo/reacher-csharp/issues/24) | [FE] Analysis view and score column | 47 | T2-08, T1-10 | Done (PR #57) |
 | T2-10 | [#59](https://github.com/Kisslo/reacher-csharp/issues/59) | [FE] Fix behov sorting | 47 | T2-09 | Done (PR #60) |
 | T2-11 | [#61](https://github.com/Kisslo/reacher-csharp/issues/61) | [FE] Sortable Lighthouse category columns in the company table | 47 | T2-09, T2-10 | Done (PR #67) |
-| T2-12 | [#80](https://github.com/Kisslo/reacher-csharp/issues/80) | [FE] Mark analysed companies and keep them at the top | 47 | – | Todo |
+| T2-12 | [#80](https://github.com/Kisslo/reacher-csharp/issues/80) | [FE] Mark analysed companies and keep them at the top | 47 | – | Done |
 
 T2-05 doesn't depend on Brave, so it can start as soon as J-03 is merged, in parallel with T2-03.
 

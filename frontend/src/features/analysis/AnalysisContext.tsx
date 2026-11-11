@@ -26,6 +26,8 @@ type AnalysisContextValue = {
     scores: ReadonlyMap<string, SessionScore>;
     analysis: AnalysisState | null;
     startAnalysis: (orgnr: string, url: string) => void;
+    /** Marks the company as analysed without a website (no score, no URL). */
+    markNoWebsite: (orgnr: string) => void;
     closeAnalysis: () => void;
     getScore: (orgnr: string) => SessionScore | undefined;
 };
@@ -51,6 +53,7 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
                         setScores((current) => {
                             const next = new Map(current);
                             next.set(orgnr, {
+                                kind: 'scored',
                                 reworkScore: Number(result.reworkScore),
                                 analysedAt: result.fetchedAt,
                                 lighthouse: readLighthouse(result.lighthouse),
@@ -73,6 +76,16 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
         [mutation],
     );
 
+    // Only the fact and the time. There is no URL to keep for a missing website.
+    const markNoWebsite = useCallback((orgnr: string) => {
+        setScores((current) =>
+            new Map(current).set(orgnr, {
+                kind: 'noWebsite',
+                analysedAt: new Date().toISOString(),
+            }),
+        );
+    }, []);
+
     const closeAnalysis = useCallback(() => setAnalysis(null), []);
     const getScore = useCallback(
         (orgnr: string) => scores.get(orgnr),
@@ -83,10 +96,18 @@ export function AnalysisProvider({ children }: { children: ReactNode }) {
             scores,
             analysis,
             startAnalysis,
+            markNoWebsite,
             closeAnalysis,
             getScore,
         }),
-        [analysis, closeAnalysis, getScore, scores, startAnalysis],
+        [
+            analysis,
+            closeAnalysis,
+            getScore,
+            markNoWebsite,
+            scores,
+            startAnalysis,
+        ],
     );
 
     return (

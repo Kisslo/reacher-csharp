@@ -20,4 +20,7 @@ export const websiteText = {
     analyze: 'Analysera',
     pasteLabel: 'Klistra in adress',
     pasteActions: 'Åtgärder för inklistrad adress',
+    noWebsite: 'Ingen webbplats',
+    noWebsiteHint:
+        'Hittar du ingen webbplats? Markera företaget som analyserat utan webbplats.',
 } as const;

@@ -8,8 +8,12 @@ import { commonText } from '../../texts/common';
 import { companyText } from '../../texts/companies';
 import { getErrorMessage } from '../../texts/errors';
 import { renderWithQuery } from '../../test/render';
+import { AnalysisProvider, useAnalysis } from '../analysis/AnalysisContext';
 import { analysisText } from '../analysis/analysisText';
-import type { SessionScore } from '../analysis/sessionScore';
+import type {
+    LighthouseSessionScores,
+    SessionScore,
+} from '../analysis/sessionScore';
 import { CompanyResults } from './CompanyResults';
 import { formatAmount as format } from './format';
 
@@ -137,9 +141,10 @@ function rowOf(name: string): HTMLElement {
 
 function analysed(
     reworkScore: number,
-    lighthouse: SessionScore['lighthouse'],
+    lighthouse: LighthouseSessionScores | null,
 ): SessionScore {
     return {
+        kind: 'scored',
         reworkScore,
         analysedAt: '2026-11-02T14:00:00Z',
         lighthouse,
@@ -713,7 +718,7 @@ describe('CompanyResults', () => {
                 within(rowOf('Kamhuset AB')).getAllByText(
                     companyText.missingValue,
                 ),
-            ).toHaveLength(8);
+            ).toHaveLength(9);
         });
 
         it('replaces the company sort with Behov, and a column turns Behov off', async () => {
@@ -796,9 +801,11 @@ describe('CompanyResults', () => {
                     .getAttribute('aria-sort'),
             ).toBe('ascending');
             expect(window.location.search).not.toContain('order=');
+            // Both are analysed, so the browser sorts them by name inside the
+            // pinned group. The fake API ignores the sort.
             expect(companyNames()).toEqual([
-                'Saxen & Kammen AB',
                 'Kamhuset AB',
+                'Saxen & Kammen AB',
             ]);
 
             await user.click(screen.getByRole('button', { name: revenue }));
@@ -896,7 +903,7 @@ describe('CompanyResults', () => {
                     })
                     .closest('td')
                     ?.getAttribute('colspan'),
-            ).toBe('14');
+            ).toBe('15');
             await user.click(
                 screen.getByRole('button', {
                     name: companyText.hideDetails('Saxen & Kammen AB'),
@@ -996,9 +1003,10 @@ describe('CompanyResults', () => {
             expect(headersWithSort()).toEqual([
                 column(companyText.columnCompany),
             ]);
+            // All three are analysed, so the browser sorts them by name.
             expect(companyNames()).toEqual([
-                'Saxen & Kammen AB',
                 'Kamhuset AB',
+                'Saxen & Kammen AB',
                 'Tredje AB',
             ]);
 
@@ -1301,6 +1309,372 @@ describe('CompanyResults', () => {
             expect((field as HTMLTextAreaElement).value).toBe(savedNote);
             expect(lastOf(puts).note).toBe('https://example.com');
             expect(window.location.search).not.toContain('example.com');
+        });
+    });
+
+    describe('analysed companies', () => {
+        // A made-up site. It must never reach the table, the URL or storage.
+        const website = 'https://example.test';
+
+        const norra = {
+            ...kamhuset,
+            orgnr: '5599000049',
+            name: 'Norra Klipp AB',
+        } satisfies Company;
+
+        const ostra = {
+            ...kamhuset,
+            orgnr: '5599000056',
+            name: 'Östra Frisör AB',
+        } satisfies Company;
+
+        /**
+         * Two pages of two. The fake ignores the sort, like the other tests, so
+         * the rest of a page always comes in this server order.
+         */
+        function stubTwoPages(reworkScores: number[] = []) {
+            let rows: Company[] = [saxen, kamhuset, norra, ostra];
+            const puts: { orgnr: string; called: boolean }[] = [];
+            let analyses = 0;
+
+            vi.stubGlobal(
+                'fetch',
+                vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+                    const url = String(input);
+                    if (url === '/api/codes/employee-classes') {
+                        return Response.json(employeeClasses);
+                    }
+                    if (url === '/api/codes/revenue-classes') {
+                        return Response.json(revenueClasses);
+                    }
+                    if (url === '/api/website-analysis') {
+                        const reworkScore = reworkScores[analyses] ?? 72;
+                        analyses += 1;
+                        return Response.json({
+                            url: website,
+                            fetchedAt: '2026-11-11T09:00:00Z',
+                            reworkScore,
+                            lighthouse: null,
+                            checks: {
+                                https: true,
+                                viewport: true,
+                                generator: null,
+                                copyrightYear: null,
+                                responseTimeMs: 300,
+                            },
+                        });
+                    }
+                    if (url.endsWith('/outreach')) {
+                        const orgnr = url.split('/')[3] ?? '';
+                        const body = JSON.parse(String(init?.body)) as {
+                            called: boolean;
+                        };
+                        puts.push({ orgnr, called: body.called });
+                        rows = rows.map((row) =>
+                            row.orgnr === orgnr
+                                ? {
+                                      ...row,
+                                      calledAt: body.called
+                                          ? '2026-11-11T10:00:00Z'
+                                          : null,
+                                  }
+                                : row,
+                        );
+                        return new Response(null, { status: 204 });
+                    }
+                    if (url.startsWith('/api/companies?')) {
+                        const params = new URLSearchParams(url.split('?')[1]);
+                        const number = Number(params.get('page') ?? '1');
+                        return Response.json(
+                            page({
+                                items: rows.slice((number - 1) * 2, number * 2),
+                                page: number,
+                                pageSize: 2,
+                                totalCount: rows.length,
+                            }),
+                        );
+                    }
+
+                    throw new Error(`Unexpected fetch: ${url}`);
+                }),
+            );
+
+            return { puts };
+        }
+
+        /**
+         * Wired like App: the row's buttons analyse the company's website, or
+         * mark that it has none.
+         */
+        function AnalysedResults() {
+            const { getScore, markNoWebsite, startAnalysis } = useAnalysis();
+            return (
+                <CompanyResults
+                    search={search}
+                    scoreLookup={getScore}
+                    extraColumns={[
+                        {
+                            key: 'analyse',
+                            header: 'Analys',
+                            cell: (company) => (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            startAnalysis(
+                                                company.orgnr,
+                                                website,
+                                            )
+                                        }
+                                    >
+                                        {`Analysera ${company.name}`}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            markNoWebsite(company.orgnr)
+                                        }
+                                    >
+                                        {`Ingen webbplats ${company.name}`}
+                                    </button>
+                                </>
+                            ),
+                        },
+                    ]}
+                />
+            );
+        }
+
+        async function renderAnalysed() {
+            const user = userEvent.setup();
+            const view = renderWithQuery(
+                <AnalysisProvider>
+                    <AnalysedResults />
+                </AnalysisProvider>,
+            );
+            await screen.findByRole('cell', { name: saxen.name });
+            return { user, view };
+        }
+
+        type User = ReturnType<typeof userEvent.setup>;
+
+        async function analyse(user: User, name: string) {
+            await user.click(
+                screen.getByRole('button', { name: `Analysera ${name}` }),
+            );
+            await screen.findByText(analysisText.score);
+            await user.click(
+                screen.getByRole('button', { name: analysisText.close }),
+            );
+        }
+
+        async function goToPage(user: User, label: string, name: string) {
+            await user.click(screen.getByRole('button', { name: label }));
+            await screen.findByRole('cell', { name });
+        }
+
+        /** The Analyserad cell of a row, found by the header's position. */
+        function analysedMark(name: string): string {
+            const index = screen
+                .getAllByRole('columnheader')
+                .findIndex(
+                    (header) =>
+                        header.textContent === companyText.columnAnalysed,
+                );
+            expect(index).toBeGreaterThan(0);
+            return rowOf(name).children[index]?.textContent ?? '';
+        }
+
+        function expectNothingStored() {
+            expect(screen.getByRole('table').textContent).not.toContain(
+                'example.test',
+            );
+            expect(window.location.href).not.toContain('example.test');
+            expect(localStorage.length).toBe(0);
+            expect(sessionStorage.length).toBe(0);
+        }
+
+        afterEach(() => {
+            localStorage.clear();
+            sessionStorage.clear();
+        });
+
+        it('marks an analysed company and pins it once above every page', async () => {
+            stubTwoPages();
+            const { user, view } = await renderAnalysed();
+
+            expect(
+                screen.getByRole('columnheader', {
+                    name: companyText.columnAnalysed,
+                }),
+            ).toBeTruthy();
+            expect(analysedMark(saxen.name)).toBe(companyText.missingValue);
+
+            await goToPage(user, companyText.nextPage, norra.name);
+            await analyse(user, ostra.name);
+
+            expect(analysedMark(ostra.name)).toBe(companyText.analysedYes);
+            expect(analysedMark(norra.name)).toBe(companyText.missingValue);
+            expect(rowOf(ostra.name).className).toBe('analysed-row');
+            expect(companyNames()).toEqual([ostra.name, norra.name]);
+
+            await goToPage(user, companyText.previousPage, saxen.name);
+
+            expect(companyNames()).toEqual([
+                ostra.name,
+                saxen.name,
+                kamhuset.name,
+            ]);
+            expect(analysedMark(ostra.name)).toBe(companyText.analysedYes);
+            expect(analysedMark(saxen.name)).toBe(companyText.missingValue);
+
+            await goToPage(user, companyText.nextPage, norra.name);
+
+            expect(companyNames()).toEqual([ostra.name, norra.name]);
+            expectNothingStored();
+
+            // A reload starts from an empty session: no mark and no pin.
+            view.unmount();
+            window.history.replaceState(null, '', '/');
+            await renderAnalysed();
+
+            expect(companyNames()).toEqual([saxen.name, kamhuset.name]);
+            expect(analysedMark(saxen.name)).toBe(companyText.missingValue);
+            expect(analysedMark(kamhuset.name)).toBe(companyText.missingValue);
+            expectNothingStored();
+        });
+
+        it('sorts inside the analysed group and never lifts the rest above it', async () => {
+            // Saxen gets the lower Behov, so the Behov and name orders differ.
+            stubTwoPages([30, 80]);
+            const { user } = await renderAnalysed();
+            const behov = () =>
+                screen.getByRole('button', {
+                    name: new RegExp(analysisText.sortColumn),
+                });
+            const companyColumn = () =>
+                screen.getByRole('button', {
+                    name: new RegExp(`^${companyText.columnCompany}`),
+                });
+
+            await analyse(user, saxen.name);
+            await goToPage(user, companyText.nextPage, norra.name);
+            await analyse(user, norra.name);
+
+            // Name ascending inside the pins. Östra follows in server order.
+            expect(companyNames()).toEqual([
+                norra.name,
+                saxen.name,
+                ostra.name,
+            ]);
+
+            await goToPage(user, companyText.previousPage, kamhuset.name);
+            // Kamhuset comes first by name, but it is not analysed.
+            expect(companyNames()).toEqual([
+                norra.name,
+                saxen.name,
+                kamhuset.name,
+            ]);
+
+            await user.click(behov());
+            expect(companyNames()).toEqual([
+                saxen.name,
+                norra.name,
+                kamhuset.name,
+            ]);
+
+            await user.click(behov());
+            expect(companyNames()).toEqual([
+                norra.name,
+                saxen.name,
+                kamhuset.name,
+            ]);
+
+            // Leaving Behov selects the company column ascending.
+            await user.click(companyColumn());
+            expect(companyNames()).toEqual([
+                norra.name,
+                saxen.name,
+                kamhuset.name,
+            ]);
+
+            await user.click(companyColumn());
+            await waitFor(() => {
+                expect(companyNames()).toEqual([
+                    saxen.name,
+                    norra.name,
+                    kamhuset.name,
+                ]);
+            });
+            expectNothingStored();
+        });
+
+        it('marks and pins a company without a website, with no scores', async () => {
+            stubTwoPages();
+            const { user } = await renderAnalysed();
+
+            await analyse(user, saxen.name);
+            await goToPage(user, companyText.nextPage, norra.name);
+            await user.click(
+                screen.getByRole('button', {
+                    name: `Ingen webbplats ${ostra.name}`,
+                }),
+            );
+
+            expect(analysedMark(ostra.name)).toBe(
+                companyText.analysedNoWebsite,
+            );
+            expect(scoreCells(ostra.name)).toEqual(
+                Array(5).fill(companyText.missingValue),
+            );
+
+            await goToPage(user, companyText.previousPage, kamhuset.name);
+            expect(companyNames()).toEqual([
+                saxen.name,
+                ostra.name,
+                kamhuset.name,
+            ]);
+
+            // No Behov value, so it stays last in the pinned group both ways.
+            const behov = () =>
+                screen.getByRole('button', {
+                    name: new RegExp(analysisText.sortColumn),
+                });
+            await user.click(behov());
+            expect(companyNames()).toEqual([
+                saxen.name,
+                ostra.name,
+                kamhuset.name,
+            ]);
+            await user.click(behov());
+            expect(companyNames()).toEqual([
+                saxen.name,
+                ostra.name,
+                kamhuset.name,
+            ]);
+            expectNothingStored();
+        });
+
+        it('keeps Kontaktad on a pinned company from another page', async () => {
+            const { puts } = stubTwoPages();
+            const { user } = await renderAnalysed();
+
+            await goToPage(user, companyText.nextPage, norra.name);
+            await analyse(user, ostra.name);
+            await goToPage(user, companyText.previousPage, saxen.name);
+
+            const called = () =>
+                screen.getByRole('checkbox', {
+                    name: companyText.calledLabel(ostra.name),
+                }) as HTMLInputElement;
+            await user.click(called());
+
+            await waitFor(() => {
+                expect(called().checked).toBe(true);
+                expect(called().disabled).toBe(false);
+            });
+            expect(puts).toEqual([{ orgnr: ostra.orgnr, called: true }]);
+            expect(companyNames()[0]).toBe(ostra.name);
         });
     });
 });

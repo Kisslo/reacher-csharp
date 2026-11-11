@@ -1,11 +1,17 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import type { CompanyPage } from '../../api/companies';
+import type { Company, CompanyPage } from '../../api/companies';
 import { commonText } from '../../texts/common';
 import { companyText } from '../../texts/companies';
 import { errorText } from '../search/searchRules';
 import type { SearchSelection } from '../search/searchUrl';
+import {
+    arrangeAnalysedFirst,
+    compareCompanies,
+    compareOrgnr,
+} from './analysedFirst';
+import type { CompanyComparer } from './analysedFirst';
 import { companiesQuery } from './companyQueries';
 import { CompanyFilters } from './CompanyFilters';
 import { CompanyTable } from './CompanyTable';
@@ -47,6 +53,36 @@ export function CompanyResults({
     const [view, setView] = useState(readCompanyViewFromUrl);
     const [scoreSort, setScoreSort] = useState<ScoreSort | null>(null);
     const companies = useQuery(companiesQuery(search, view));
+    // Every row this search has shown, in memory only. The list is remounted for
+    // a new search, so this is "this search" and a reload clears it. Rows the
+    // session has analysed are pinned from here on every page (T2-12).
+    const [seenRows, setSeenRows] = useState<ReadonlyMap<string, Company>>(
+        () => new Map(),
+    );
+
+    useEffect(() => {
+        const items = companies.data?.items;
+        if (items === undefined) {
+            return;
+        }
+        setSeenRows((current) => {
+            const next = new Map(current);
+            for (const company of items) {
+                next.set(company.orgnr, company);
+            }
+            return next;
+        });
+    }, [companies.data]);
+
+    // A pinned row from another page is not in the cached page that outreach
+    // updates, so it is kept in step here.
+    const updateSeenRow = useCallback((company: Company) => {
+        setSeenRows((current) =>
+            current.has(company.orgnr)
+                ? new Map(current).set(company.orgnr, company)
+                : current,
+        );
+    }, []);
 
     function changeView(next: CompanyView) {
         setView(next);
@@ -106,6 +142,8 @@ export function CompanyResults({
                     scoreLookup={scoreLookup}
                     scoreSort={scoreSort}
                     onScoreSort={activateScoreSort}
+                    seenRows={seenRows}
+                    onRowChange={updateSeenRow}
                 />
             )}
         </div>
@@ -122,6 +160,8 @@ type CompanyListProps = {
     scoreLookup?: (orgnr: string) => SessionScore | undefined;
     scoreSort: ScoreSort | null;
     onScoreSort: (column: ScoreColumn) => void;
+    seenRows: ReadonlyMap<string, Company>;
+    onRowChange: (company: Company) => void;
 };
 
 function CompanyList({
@@ -134,6 +174,8 @@ function CompanyList({
     scoreLookup,
     scoreSort,
     onScoreSort,
+    seenRows,
+    onRowChange,
 }: CompanyListProps) {
     // .NET's OpenAPI types int32 as number | string, so convert before doing maths.
     const totalCount = Number(response.totalCount);
@@ -146,16 +188,13 @@ function CompanyList({
         return <p role="status">{companyText.empty}</p>;
     }
 
-    const sortedItems =
-        scoreLookup === undefined || scoreSort === null
-            ? response.items
-            : [...response.items].sort((left, right) =>
-                  compareScoreValues(
-                      scoreValue(scoreLookup(left.orgnr), scoreSort.column),
-                      scoreValue(scoreLookup(right.orgnr), scoreSort.column),
-                      scoreSort.order,
-                  ),
-              );
+    // Without a score store nothing is analysed, so the page keeps the server's order.
+    const { rows, analysed } = arrangeAnalysedFirst({
+        pageItems: response.items,
+        seenRows,
+        isAnalysed: (orgnr) => scoreLookup?.(orgnr) !== undefined,
+        compare: analysedComparer(view, scoreSort, scoreLookup),
+    });
 
     return (
         <>
@@ -166,7 +205,9 @@ function CompanyList({
                 </p>
             )}
             <CompanyTable
-                companies={sortedItems}
+                companies={rows}
+                analysed={analysed}
+                onRowChange={onRowChange}
                 view={view}
                 busy={busy}
                 extraColumns={extraColumns}
@@ -182,4 +223,23 @@ function CompanyList({
             />
         </>
     );
+}
+
+/** The active sort, score or company, orders the analysed group. */
+function analysedComparer(
+    view: CompanyView,
+    scoreSort: ScoreSort | null,
+    scoreLookup: ((orgnr: string) => SessionScore | undefined) | undefined,
+): CompanyComparer {
+    if (scoreSort === null || scoreLookup === undefined) {
+        return (left, right) =>
+            compareCompanies(left, right, view.sort, view.order);
+    }
+
+    return (left, right) =>
+        compareScoreValues(
+            scoreValue(scoreLookup(left.orgnr), scoreSort.column),
+            scoreValue(scoreLookup(right.orgnr), scoreSort.column),
+            scoreSort.order,
+        ) || compareOrgnr(left, right);
 }

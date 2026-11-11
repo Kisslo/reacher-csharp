@@ -136,6 +136,11 @@
     background: #f5f7fb;
 }
 
+/* Analysed this session and pinned above the rest (T2-12). */
+.analysed-row td {
+    background: #eef6ee;
+}
+
 .details-row p {
     margin: 0;
 }

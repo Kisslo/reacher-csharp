@@ -186,6 +186,7 @@ describe('AnalysisProvider', () => {
         const stored = await screen.findByText(/"performance":61/);
         const score = JSON.parse(stored.textContent ?? '');
         expect(score).toEqual({
+            kind: 'scored',
             reworkScore: 72,
             analysedAt: '2026-11-02T14:00:00Z',
             lighthouse: {
