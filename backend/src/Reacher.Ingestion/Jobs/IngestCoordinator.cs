@@ -7,14 +7,15 @@ using Reacher.Ingestion.Options;
 namespace Reacher.Ingestion.Jobs;
 
 /// <summary>
-/// Turns a search into "fresh", an existing job or a new one (D6). Scoped, like the
-/// <see cref="ReacherDbContext"/> it uses.
+/// Turns a search into "fresh", an existing job or a new one (D6), and cancels jobs (J-17).
+/// Scoped, like the <see cref="ReacherDbContext"/> it uses.
 /// </summary>
 public sealed class IngestCoordinator(
     ReacherDbContext db,
     IIngestQueue queue,
     IOptions<IngestOptions> options,
-    TimeProvider time) : IIngestCoordinator
+    TimeProvider time,
+    IngestJobCancellation cancellations) : IIngestCoordinator
 {
     // One request at a time in this process, so a double click can't create two jobs for the
     // same search. Static, because a scoped service gets a new instance per HTTP request.
@@ -67,6 +68,51 @@ public sealed class IngestCoordinator(
             // After the save: the worker reads the row, so it must exist when the id arrives.
             await queue.EnqueueAsync(job.Id, cancellationToken);
             return new IngestRequestResult(job.Id, job.Status);
+        }
+        finally
+        {
+            Gate.Release();
+        }
+    }
+
+    public async Task<CancelJobResult> CancelAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        // The same gate as RequestAsync, so a search can't join a job that is being cancelled.
+        await Gate.WaitAsync(cancellationToken);
+        try
+        {
+            DateTimeOffset? finishedAt = time.GetUtcNow();
+
+            // One UPDATE ... WHERE status IN ('queued', 'running'). The worker moves a job on
+            // the same way, so whichever of them comes second changes nothing.
+            var changed = await db.IngestJobs
+                .Where(j => j.Id == jobId
+                    && (j.Status == IngestJobStatus.Queued
+                        || j.Status == IngestJobStatus.Running))
+                .ExecuteUpdateAsync(
+                    setters => setters
+                        .SetProperty(j => j.Status, IngestJobStatus.Cancelled)
+                        .SetProperty(j => j.FinishedAt, finishedAt),
+                    cancellationToken);
+
+            if (changed == 1)
+            {
+                // After the update: the worker checks the row before it starts a job, and the
+                // token stops a job it has already started.
+                cancellations.Cancel(jobId);
+                return CancelJobResult.Cancelled;
+            }
+
+            var status = await db.IngestJobs
+                .Where(j => j.Id == jobId)
+                .Select(j => j.Status)
+                .FirstOrDefaultAsync(cancellationToken);
+            return status switch
+            {
+                null => CancelJobResult.NotFound,
+                IngestJobStatus.Cancelled => CancelJobResult.Cancelled,
+                _ => CancelJobResult.NotCancellable,
+            };
         }
         finally
         {

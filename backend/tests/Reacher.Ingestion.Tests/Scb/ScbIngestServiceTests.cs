@@ -149,6 +149,37 @@ public sealed class ScbIngestServiceTests(IngestPostgresFixture postgres)
     }
 
     [Fact]
+    public async Task A_cancelled_run_stops_calling_SCB_and_keeps_what_was_saved()
+    {
+        var scb = new FakeScbClient
+        {
+            Workplaces = { Workplace("90000001", CompanyA), Workplace("90000002", CompanyA) },
+            LegalUnits = { [CompanyA] = LegalUnit(CompanyA) },
+        };
+        await Run(scb, [Stockholm]);
+
+        // SCB no longer lists one workplace, and company B in Solna is new.
+        scb.Workplaces.RemoveAll(w => w.CfarNr == "90000002");
+        scb.Workplaces.Add(Workplace("90000003", CompanyB, municipality: Solna));
+        scb.LegalUnits[CompanyB] = LegalUnit(CompanyB);
+        scb.LegalUnitRequests.Clear();
+        using var cancel = new CancellationTokenSource();
+        scb.OnLegalUnit = _ => cancel.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => Run(scb, [Stockholm, Solna], cancellationToken: cancel.Token));
+
+        // Cancelled after the first company: no further SCB calls.
+        Assert.Single(scb.LegalUnitRequests);
+        await using var db = postgres.CreateContext();
+        // The workplace SCB stopped listing is not deleted, and Solna is not marked fresh.
+        Assert.Equal(
+            ["90000001", "90000002"],
+            await db.Workplaces.OrderBy(w => w.Cfar).Select(w => w.Cfar).ToListAsync());
+        Assert.Equal([Stockholm], await db.Coverage.Select(c => c.Municipality).ToListAsync());
+    }
+
+    [Fact]
     public async Task Cleanup_leaves_municipalities_that_were_not_requested_alone()
     {
         var scb = new FakeScbClient
@@ -320,20 +351,18 @@ public sealed class ScbIngestServiceTests(IngestPostgresFixture postgres)
         };
         List<string>? companiesMidRun = null;
         int? coverageMidRun = null;
-        scb.BeforeLegalUnit = async peOrgNr =>
+        scb.OnLegalUnit = peOrgNr =>
         {
             if (peOrgNr != CompanyC)
             {
                 return;
             }
 
-            // What GET /api/companies reads while the job is still running.
-            await using var other = postgres.CreateContext();
-            companiesMidRun = await other.Companies
-                .OrderBy(c => c.Orgnr)
-                .Select(c => c.Orgnr)
-                .ToListAsync();
-            coverageMidRun = await other.Coverage.CountAsync();
+            // What GET /api/companies reads while the job is still running. The hook is
+            // synchronous, so the queries are too.
+            using var other = postgres.CreateContext();
+            companiesMidRun = [.. other.Companies.OrderBy(c => c.Orgnr).Select(c => c.Orgnr)];
+            coverageMidRun = other.Coverage.Count();
         };
 
         await Run(scb, [Stockholm], saveBatchSize: 2);
@@ -384,11 +413,11 @@ public sealed class ScbIngestServiceTests(IngestPostgresFixture postgres)
         scb.LegalUnits[CompanyA] = LegalUnit(CompanyA, foretagsnamn: "Påhittade Saxen Nya AB");
         scb.LegalUnits[CompanyD] = LegalUnit(CompanyD);
         using var cancellation = new CancellationTokenSource();
-        scb.BeforeLegalUnit = peOrgNr =>
+        scb.OnLegalUnit = peOrgNr =>
         {
             if (peOrgNr != CompanyC)
             {
-                return Task.CompletedTask;
+                return;
             }
 
             if (cancel)
@@ -431,7 +460,7 @@ public sealed class ScbIngestServiceTests(IngestPostgresFixture postgres)
         }
 
         // The next run succeeds: B goes, with its outreach (D18), and the data is fresh.
-        scb.BeforeLegalUnit = null;
+        scb.OnLegalUnit = null;
         await Run(scb, [Stockholm], now: later);
 
         await using (var db = postgres.CreateContext())

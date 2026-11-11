@@ -8,7 +8,7 @@
 | `workplace` | `cfar` PK, `orgnr` FK → `company`, `name` (null), `sni`, `municipality`, `street`, `postal_code`, `city`, `workplace_status`, `ad_block_type`, `updated_at` | Visiting address only, never `postAdress`. |
 | `financial_fact` | `orgnr` FK, `period_end` (date), `key`, `value` (numeric), `document_id`, `fetched_at`. PK (`orgnr`, `period_end`, `key`) | `key` from the tag map (D14). |
 | `coverage` | `sni`, `municipality`, `fetched_at`. PK (`sni`, `municipality`) | Freshness per D6. |
-| `ingest_job` | `id` (uuid), `sni`, `municipalities` (text[]), `status` (`queued`/`running`/`succeeded`/`failed`), `phase`, `done`, `total`, `error`, `created_at`, `started_at`, `finished_at` | |
+| `ingest_job` | `id` (uuid), `sni`, `municipalities` (text[]), `status` (`queued`/`running`/`succeeded`/`failed`/`cancelled`), `phase`, `done`, `total`, `error`, `created_at`, `started_at`, `finished_at` | A cancelled job keeps rows already committed; it never updates `coverage` or runs the end-of-run delete. |
 | `brave_usage` | `month` PK (`YYYY-MM`), `request_count` | Counter only (D7). |
 | `company_outreach` | `orgnr` PK and FK → `company` (`ON DELETE CASCADE`), `called_at` (timestamp, null), `willing` (bool, null), `note` (text, max 500, null), `updated_at` | User-entered shared outreach state; one row per company. |
 
@@ -33,6 +33,9 @@ POST /api/searches                  body { sni, municipalities: [string], refres
                                     → 202 { jobId, status }          (job started or already running)
                                     → 200 { jobId: null, status: "fresh" }
 GET  /api/jobs/{jobId}              → { jobId, status, phase, done, total, error, startedAt, finishedAt }
+POST /api/jobs/{jobId}/cancel       → 200 { same shape as GET /api/jobs/{jobId}, status: "cancelled" }
+                                    → 404 job_not_found
+                                    → 409 job_not_cancellable          (already succeeded or failed)
 ```
 
 ### Companies

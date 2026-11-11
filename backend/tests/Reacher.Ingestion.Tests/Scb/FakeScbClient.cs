@@ -16,11 +16,8 @@ internal sealed class FakeScbClient : IScbClient
     /// <summary>Every peOrgNr passed to <see cref="GetLegalUnit"/>, in order.</summary>
     public List<string> LegalUnitRequests { get; } = [];
 
-    /// <summary>
-    /// Runs before <see cref="GetLegalUnit"/> answers, with the peOrgNr asked for. A test can
-    /// look at the database mid-run here, or throw to make SCB fail.
-    /// </summary>
-    public Func<string, Task>? BeforeLegalUnit { get; set; }
+    /// <summary>Runs after each legal unit is asked for, e.g. to cancel the run part-way.</summary>
+    public Action<string>? OnLegalUnit { get; set; }
 
     public async IAsyncEnumerable<WorkplacePartial> GetWorkplacesBySni(
         string sni,
@@ -34,10 +31,10 @@ internal sealed class FakeScbClient : IScbClient
         }
     }
 
-    public async Task<LegalUnitFull?> GetLegalUnit(
-        string peOrgNr,
-        CancellationToken cancellationToken)
+    public Task<LegalUnitFull?> GetLegalUnit(string peOrgNr, CancellationToken cancellationToken)
     {
+        // Like the real HttpClient: a cancelled run makes no further request.
+        cancellationToken.ThrowIfCancellationRequested();
         LegalUnitRequests.Add(peOrgNr);
 
         // The same guard as the real client, so a personnummer that got through fails loudly.
@@ -46,12 +43,8 @@ internal sealed class FakeScbClient : IScbClient
             throw new ArgumentException("Only a peOrgNr that starts with 16 may be fetched.");
         }
 
-        if (BeforeLegalUnit is not null)
-        {
-            await BeforeLegalUnit(peOrgNr);
-        }
-
-        return LegalUnits.GetValueOrDefault(peOrgNr);
+        OnLegalUnit?.Invoke(peOrgNr);
+        return Task.FromResult(LegalUnits.GetValueOrDefault(peOrgNr));
     }
 
     public Task<WorkplaceFull?> GetWorkplace(string cfarNr, CancellationToken cancellationToken) =>

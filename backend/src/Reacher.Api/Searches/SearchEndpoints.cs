@@ -122,6 +122,46 @@ public static class SearchEndpoints
             .Produces<JobResponse>(StatusCodes.Status200OK)
             .Produces<SearchProblem>(StatusCodes.Status404NotFound, "application/problem+json");
 
+        endpoints.MapPost(
+                "/api/jobs/{jobId:guid}/cancel",
+                async Task<Results<JsonHttpResult<JobResponse>, JsonHttpResult<SearchProblem>>> (
+                    Guid jobId,
+                    IIngestCoordinator coordinator,
+                    IIngestJobReader jobs,
+                    CancellationToken cancellationToken) =>
+                {
+                    var result = await coordinator.CancelAsync(jobId, cancellationToken);
+                    if (result == CancelJobResult.NotCancellable)
+                    {
+                        return Problem(
+                            StatusCodes.Status409Conflict,
+                            "job_not_cancellable",
+                            "The ingest job has already finished.");
+                    }
+
+                    var job = result == CancelJobResult.Cancelled
+                        ? await jobs.FindAsync(jobId, cancellationToken)
+                        : null;
+                    if (job is null)
+                    {
+                        return Problem(
+                            StatusCodes.Status404NotFound,
+                            "job_not_found",
+                            "The ingest job was not found.");
+                    }
+
+                    return TypedResults.Json(job, IncludeNulls);
+                })
+            .WithName("CancelIngestJob")
+            .WithTags("Searches")
+            .WithSummary("Cancel an ingest job")
+            .WithDescription(
+                "Stops a queued or running ingest job. Rows already saved stay. Cancelling a "
+                + "cancelled job returns it again; a succeeded or failed job returns 409.")
+            .Produces<JobResponse>(StatusCodes.Status200OK)
+            .Produces<SearchProblem>(StatusCodes.Status404NotFound, "application/problem+json")
+            .Produces<SearchProblem>(StatusCodes.Status409Conflict, "application/problem+json");
+
         return endpoints;
     }
 

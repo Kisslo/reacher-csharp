@@ -79,6 +79,35 @@ public sealed class FakeIngestCoordinator(IOptions<IngestOptions> options, TimeP
             return Task.FromResult(job?.ToResponse());
         }
     }
+    
+    public Task<CancelJobResult> CancelAsync(Guid jobId, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_gate)
+        {
+            // Move the job to where the clock says it is first, so a fake job that has
+            // already finished answers like a real one.
+            SettleAll();
+            var job = _jobs.FirstOrDefault(candidate => candidate.Id == jobId);
+            if (job is null)
+            {
+                return Task.FromResult(CancelJobResult.NotFound);
+            }
+
+            if (job.Status is IngestJobStatus.Succeeded or IngestJobStatus.Failed)
+            {
+                return Task.FromResult(CancelJobResult.NotCancellable);
+            }
+
+            if (job.Status is IngestJobStatus.Queued or IngestJobStatus.Running)
+            {
+                job.Status = IngestJobStatus.Cancelled;
+                job.FinishedAt = time.GetUtcNow();
+            }
+
+            return Task.FromResult(CancelJobResult.Cancelled);
+        }
+    }
 
     private bool IsFresh(string sni, List<string> wanted)
     {
@@ -97,7 +126,10 @@ public sealed class FakeIngestCoordinator(IOptions<IngestOptions> options, TimeP
 
     private void Settle(FakeJob job)
     {
-        if (job.Status is IngestJobStatus.Succeeded or IngestJobStatus.Failed)
+        // A cancelled job stays cancelled, however much time passes.
+        if (job.Status is IngestJobStatus.Succeeded
+            or IngestJobStatus.Failed
+            or IngestJobStatus.Cancelled)
         {
             return;
         }

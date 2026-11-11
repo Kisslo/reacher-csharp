@@ -105,6 +105,31 @@ public sealed class SearchEndpointDatabaseTests(CompanySearchFixture postgres)
         Assert.Equal("job_not_found", body!["code"]!.GetValue<string>());
     }
 
+    [Fact]
+    public async Task A_queued_job_can_be_cancelled_and_a_new_search_gets_a_new_job()
+    {
+        using var factory = CreateHost();
+        using var client = factory.CreateClient();
+        // Its own SNI and municipality, so no other test in this class shares the job.
+        var started = await PostSearch(client, "96220", ["1480"], refresh: true);
+        Assert.Equal(HttpStatusCode.Accepted, started.StatusCode);
+        var startedBody = await started.Content.ReadFromJsonAsync<JsonObject>(Json);
+        var jobId = startedBody!["jobId"]!.GetValue<Guid>();
+
+        var uri = new Uri($"/api/jobs/{jobId}/cancel", UriKind.Relative);
+        foreach (var attempt in new[] { 1, 2 })
+        {
+            var response = await client.PostAsync(uri, content: null);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var body = await response.Content.ReadFromJsonAsync<JsonObject>(Json);
+            Assert.Equal("cancelled", body!["status"]!.GetValue<string>());
+        }
+
+        var again = await PostSearch(client, "96220", ["1480"], refresh: true);
+        var againBody = await again.Content.ReadFromJsonAsync<JsonObject>(Json);
+        Assert.NotEqual(jobId, againBody!["jobId"]!.GetValue<Guid>());
+    }
+
     private WebApplicationFactory<Program> CreateHost() =>
         ReacherApiFactory.Create(postgres.ConnectionString).WithWebHostBuilder(builder =>
             builder.ConfigureTestServices(services =>
