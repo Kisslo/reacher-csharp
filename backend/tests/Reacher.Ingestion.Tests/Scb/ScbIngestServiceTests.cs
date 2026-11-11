@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Reacher.Data.Entities;
 using Reacher.Ingestion.Options;
 using Reacher.Ingestion.Scb;
 using static Reacher.Ingestion.Tests.Scb.ScbTestData;
@@ -299,11 +300,165 @@ public sealed class ScbIngestServiceTests(IngestPostgresFixture postgres)
             progress.Reports);
     }
 
+    [Fact]
+    public async Task Each_batch_is_committed_before_the_run_ends()
+    {
+        var scb = new FakeScbClient
+        {
+            Workplaces =
+            {
+                Workplace("90000001", CompanyA),
+                Workplace("90000002", CompanyB),
+                Workplace("90000003", CompanyC),
+            },
+            LegalUnits =
+            {
+                [CompanyA] = LegalUnit(CompanyA),
+                [CompanyB] = LegalUnit(CompanyB),
+                [CompanyC] = LegalUnit(CompanyC),
+            },
+        };
+        List<string>? companiesMidRun = null;
+        int? coverageMidRun = null;
+        scb.BeforeLegalUnit = async peOrgNr =>
+        {
+            if (peOrgNr != CompanyC)
+            {
+                return;
+            }
+
+            // What GET /api/companies reads while the job is still running.
+            await using var other = postgres.CreateContext();
+            companiesMidRun = await other.Companies
+                .OrderBy(c => c.Orgnr)
+                .Select(c => c.Orgnr)
+                .ToListAsync();
+            coverageMidRun = await other.Coverage.CountAsync();
+        };
+
+        await Run(scb, [Stockholm], saveBatchSize: 2);
+
+        // The first batch (A and B) was visible, and the data was not marked fresh yet.
+        Assert.Equal(["5599001236", "5599002234"], companiesMidRun);
+        Assert.Equal(0, coverageMidRun);
+        await using var db = postgres.CreateContext();
+        Assert.Equal(3, await db.Companies.CountAsync());
+        Assert.Equal(1, await db.Coverage.CountAsync());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_failed_or_cancelled_run_keeps_its_batches_but_skips_coverage_and_cleanup(
+        bool cancel)
+    {
+        // A first search stored A, B and C, and someone has since called B and C.
+        var scb = new FakeScbClient
+        {
+            Workplaces =
+            {
+                Workplace("90000001", CompanyA),
+                Workplace("90000002", CompanyB),
+                Workplace("90000003", CompanyC),
+            },
+            LegalUnits =
+            {
+                [CompanyA] = LegalUnit(CompanyA),
+                [CompanyB] = LegalUnit(CompanyB),
+                [CompanyC] = LegalUnit(CompanyC),
+            },
+        };
+        await Run(scb, [Stockholm]);
+        await AddOutreachAsync("5599002234");
+        await AddOutreachAsync("5599003232");
+
+        // A day later A has a new name, D is new and SCB no longer lists B. The run then
+        // fails, or the user cancels it, at C, the last company.
+        scb.Workplaces.Clear();
+        scb.Workplaces.AddRange(
+        [
+            Workplace("90000001", CompanyA),
+            Workplace("90000004", CompanyD),
+            Workplace("90000003", CompanyC),
+        ]);
+        scb.LegalUnits[CompanyA] = LegalUnit(CompanyA, foretagsnamn: "Påhittade Saxen Nya AB");
+        scb.LegalUnits[CompanyD] = LegalUnit(CompanyD);
+        using var cancellation = new CancellationTokenSource();
+        scb.BeforeLegalUnit = peOrgNr =>
+        {
+            if (peOrgNr != CompanyC)
+            {
+                return Task.CompletedTask;
+            }
+
+            if (cancel)
+            {
+                cancellation.Cancel();
+                cancellation.Token.ThrowIfCancellationRequested();
+            }
+
+            throw new ScbException("GET /juridiskaenheter/{peOrgNr}/full: HTTP 500.");
+        };
+        var later = Now.AddDays(1);
+
+        Task Rerun() => Run(
+            scb, [Stockholm], saveBatchSize: 1, now: later, cancellationToken: cancellation.Token);
+        if (cancel)
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(Rerun);
+        }
+        else
+        {
+            await Assert.ThrowsAsync<ScbException>(Rerun);
+        }
+
+        await using (var db = postgres.CreateContext())
+        {
+            // The committed batches stay: A's new name and the new company D.
+            var a = await db.Companies.SingleAsync(c => c.Orgnr == "5599001236");
+            Assert.Equal("Påhittade Saxen Nya AB", a.Name);
+
+            // No cleanup: B, which SCB no longer lists, is still there, and so is all outreach.
+            Assert.Equal(
+                ["5599001236", "5599002234", "5599003232", "5599004230"],
+                await db.Companies.OrderBy(c => c.Orgnr).Select(c => c.Orgnr).ToListAsync());
+            Assert.Equal(
+                ["5599002234", "5599003232"],
+                await db.CompanyOutreach.OrderBy(o => o.Orgnr).Select(o => o.Orgnr).ToListAsync());
+
+            // Not fresh: the coverage is still from the first search.
+            Assert.Equal(Now, (await db.Coverage.SingleAsync()).FetchedAt);
+        }
+
+        // The next run succeeds: B goes, with its outreach (D18), and the data is fresh.
+        scb.BeforeLegalUnit = null;
+        await Run(scb, [Stockholm], now: later);
+
+        await using (var db = postgres.CreateContext())
+        {
+            Assert.Equal(
+                ["5599001236", "5599003232", "5599004230"],
+                await db.Companies.OrderBy(c => c.Orgnr).Select(c => c.Orgnr).ToListAsync());
+            Assert.Equal(
+                ["5599003232"],
+                await db.CompanyOutreach.Select(o => o.Orgnr).ToListAsync());
+            Assert.Equal(later, (await db.Coverage.SingleAsync()).FetchedAt);
+        }
+    }
+
+    /// <summary>
+    /// The SCB part of a whole job: <see cref="ScbIngestService.RunAsync"/>, then
+    /// <see cref="ScbIngestService.CompleteAsync"/> as the pipeline calls it on success. If
+    /// <c>RunAsync</c> throws, the completion never runs, as in a failed job.
+    /// </summary>
     private async Task<ScbIngestResult> Run(
         FakeScbClient scb,
         string[] municipalities,
         ILogger<ScbIngestService>? logger = null,
-        IProgress<IngestProgress>? progress = null)
+        IProgress<IngestProgress>? progress = null,
+        int saveBatchSize = 10,
+        DateTimeOffset? now = null,
+        CancellationToken cancellationToken = default)
     {
         await using var db = postgres.CreateContext();
         // Fully qualified: inside Reacher.Ingestion, "Options" is our own options namespace.
@@ -312,10 +467,26 @@ public sealed class ScbIngestServiceTests(IngestPostgresFixture postgres)
             db,
             Microsoft.Extensions.Options.Options.Create(new ScbOptions { PageSize = 2 }),
             Microsoft.Extensions.Options.Options.Create(
-                new IngestOptions { AllowedLegalForms = ["49"] }),
-            new FixedTimeProvider(Now),
+                new IngestOptions { AllowedLegalForms = ["49"], SaveBatchSize = saveBatchSize }),
+            new FixedTimeProvider(now ?? Now),
             logger ?? NullLogger<ScbIngestService>.Instance);
-        return await service.RunAsync(
-            Sni, municipalities, progress ?? new RecordingProgress(), CancellationToken.None);
+        var run = await service.RunAsync(
+            Sni, municipalities, progress ?? new RecordingProgress(), cancellationToken);
+        await service.CompleteAsync(run, cancellationToken);
+        return run.Result;
+    }
+
+    private async Task AddOutreachAsync(string orgnr)
+    {
+        await using var db = postgres.CreateContext();
+        db.CompanyOutreach.Add(new CompanyOutreach
+        {
+            Orgnr = orgnr,
+            CalledAt = Now,
+            Willing = true,
+            Note = "Ring igen i januari.",
+            UpdatedAt = Now,
+        });
+        await db.SaveChangesAsync();
     }
 }

@@ -1,5 +1,3 @@
-using Microsoft.EntityFrameworkCore;
-using Reacher.Data;
 using Reacher.Ingestion.Bolagsverket;
 using Reacher.Ingestion.Scb;
 
@@ -19,13 +17,12 @@ public interface IIngestPipeline
 }
 
 /// <summary>
-/// T1-05, then T1-06 for the companies the search shows. Scoped: both services and this class
-/// share one <see cref="ReacherDbContext"/> per job.
+/// T1-05, then T1-06 for the companies the search shows, then the SCB completion. Scoped: both
+/// services share one DbContext per job.
 /// </summary>
 public sealed class IngestPipeline(
     ScbIngestService scb,
-    FinancialsIngestService financials,
-    ReacherDbContext db) : IIngestPipeline
+    FinancialsIngestService financials) : IIngestPipeline
 {
     public async Task RunAsync(
         string sni,
@@ -33,17 +30,14 @@ public sealed class IngestPipeline(
         IProgress<IngestProgress> progress,
         CancellationToken cancellationToken)
     {
-        await scb.RunAsync(sni, municipalities, progress, cancellationToken);
+        var run = await scb.RunAsync(sni, municipalities, progress, cancellationToken);
 
-        // Only the companies touched by this job: after the SCB ingest, the ones with a
-        // workplace for this SNI in these municipalities. Never every company in the database.
-        var wanted = municipalities.ToList();
-        var orgnrs = await db.Workplaces
-            .Where(w => w.Sni == sni && wanted.Contains(w.Municipality))
-            .Select(w => w.Orgnr)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+        // Only the companies this job stored. Never every company in the database, and never
+        // one the cleanup below is about to delete.
+        await financials.RunAsync(run.StoredOrgnrs, progress, cancellationToken);
 
-        await financials.RunAsync(orgnrs, progress, cancellationToken);
+        // Last, so a job that fails or is cancelled before this line keeps its saved companies
+        // but is never marked fresh and never deletes anything (D19).
+        await scb.CompleteAsync(run, cancellationToken);
     }
 }

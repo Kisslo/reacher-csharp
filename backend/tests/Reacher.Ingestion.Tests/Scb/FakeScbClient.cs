@@ -16,6 +16,12 @@ internal sealed class FakeScbClient : IScbClient
     /// <summary>Every peOrgNr passed to <see cref="GetLegalUnit"/>, in order.</summary>
     public List<string> LegalUnitRequests { get; } = [];
 
+    /// <summary>
+    /// Runs before <see cref="GetLegalUnit"/> answers, with the peOrgNr asked for. A test can
+    /// look at the database mid-run here, or throw to make SCB fail.
+    /// </summary>
+    public Func<string, Task>? BeforeLegalUnit { get; set; }
+
     public async IAsyncEnumerable<WorkplacePartial> GetWorkplacesBySni(
         string sni,
         [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -28,7 +34,9 @@ internal sealed class FakeScbClient : IScbClient
         }
     }
 
-    public Task<LegalUnitFull?> GetLegalUnit(string peOrgNr, CancellationToken cancellationToken)
+    public async Task<LegalUnitFull?> GetLegalUnit(
+        string peOrgNr,
+        CancellationToken cancellationToken)
     {
         LegalUnitRequests.Add(peOrgNr);
 
@@ -38,7 +46,12 @@ internal sealed class FakeScbClient : IScbClient
             throw new ArgumentException("Only a peOrgNr that starts with 16 may be fetched.");
         }
 
-        return Task.FromResult(LegalUnits.GetValueOrDefault(peOrgNr));
+        if (BeforeLegalUnit is not null)
+        {
+            await BeforeLegalUnit(peOrgNr);
+        }
+
+        return LegalUnits.GetValueOrDefault(peOrgNr);
     }
 
     public Task<WorkplaceFull?> GetWorkplace(string cfarNr, CancellationToken cancellationToken) =>

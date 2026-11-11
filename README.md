@@ -233,7 +233,8 @@ A missing required setting stops startup with the setting's name, never its valu
 - `Scb`: base URL, page size (max 5000) and requests per second (default 2, max 10). `Scb:ApiKey` via user-secrets.
 - `Bolagsverket`: token URL, API URL, scope, years, and the iXBRL tag map.
   Client id and secret via user-secrets.
-- `Ingest`: freshness days (30), allowed legal forms (`49`), and `UseFakeCoordinator`
+- `Ingest`: freshness days (30), save batch size (10 companies per commit, so the list fills
+  up during a search), allowed legal forms (`49`), and `UseFakeCoordinator`
   (false). Set it to true to simulate ingest progress without calling SCB. The real
   coordinator is used when the flag is false.
 - `Brave`: monthly cap (keep it below the Brave plan limit), requests per second,
