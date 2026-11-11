@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { focusManager } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { CodeItem } from '../../api/codes';
@@ -1309,6 +1310,156 @@ describe('CompanyResults', () => {
             expect((field as HTMLTextAreaElement).value).toBe(savedNote);
             expect(lastOf(puts).note).toBe('https://example.com');
             expect(window.location.search).not.toContain('example.com');
+        });
+
+        describe('while the search is running', () => {
+            afterEach(() => {
+                vi.useRealTimers();
+                focusManager.setFocused(undefined);
+            });
+
+            async function renderLive() {
+                vi.useFakeTimers({ shouldAdvanceTime: true });
+                focusManager.setFocused(true);
+                const user = userEvent.setup({
+                    advanceTimers: vi.advanceTimersByTime,
+                    delay: null,
+                });
+                renderWithQuery(<CompanyResults search={search} live />);
+                await screen.findByRole('table');
+                return user;
+            }
+
+            async function openNote(user: ReturnType<typeof userEvent.setup>) {
+                await user.click(
+                    screen.getByRole('button', {
+                        name: companyText.showDetails('Saxen & Kammen AB'),
+                    }),
+                );
+                return screen.getByLabelText(
+                    companyText.noteLabel('Saxen & Kammen AB'),
+                ) as HTMLTextAreaElement;
+            }
+
+            it('saves Kontaktad, Samarbete and a note on a listed row, and a reload keeps the draft', async () => {
+                const { puts, gets } = stubOutreach();
+                const user = await renderLive();
+
+                await user.click(calledBox());
+                await waitFor(() => {
+                    expect(calledBox().checked).toBe(false);
+                    expect(calledBox().disabled).toBe(false);
+                });
+                expect(lastOf(puts)).toEqual({
+                    called: false,
+                    willing: true,
+                    note: savedNote,
+                });
+
+                await user.selectOptions(willingBox(), companyText.willingNo);
+                await waitFor(() => {
+                    expect(willingBox().value).toBe('false');
+                    expect(willingBox().disabled).toBe(false);
+                });
+                expect(lastOf(puts)).toEqual({
+                    called: false,
+                    willing: false,
+                    note: savedNote,
+                });
+
+                const field = await openNote(user);
+                await user.clear(field);
+                await user.type(field, 'Skicka mail');
+
+                const getsBefore = gets.length;
+                await vi.advanceTimersByTimeAsync(5000);
+                expect(gets.length).toBeGreaterThan(getsBefore);
+                expect(field.value).toBe('Skicka mail');
+
+                await user.click(
+                    screen.getByRole('button', { name: companyText.noteSave }),
+                );
+                await waitFor(() => {
+                    expect(lastOf(puts).note).toBe('Skicka mail');
+                });
+                expect(lastOf(puts)).toEqual({
+                    called: false,
+                    willing: false,
+                    note: 'Skicka mail',
+                });
+            });
+
+            it('keeps the previous values after a failed save and the next reload', async () => {
+                stubOutreach({ rejectNote: true });
+                const user = await renderLive();
+
+                const field = await openNote(user);
+                await user.clear(field);
+                await user.type(field, 'https://example.com');
+                await user.click(
+                    screen.getByRole('button', { name: companyText.noteSave }),
+                );
+
+                const alert = await screen.findByRole('alert');
+                expect(alert.textContent).toBe(
+                    getErrorMessage('note_rejected'),
+                );
+                await vi.advanceTimersByTimeAsync(5000);
+
+                expect(field.value).toBe(savedNote);
+                expect(calledBox().checked).toBe(true);
+                expect(willingBox().value).toBe('true');
+            });
+        });
+    });
+
+    describe('while the search is running', () => {
+        afterEach(() => {
+            vi.useRealTimers();
+            focusManager.setFocused(undefined);
+        });
+
+        it('shows only the companies stored so far and reloads every 5 seconds', async () => {
+            vi.useFakeTimers({ shouldAdvanceTime: true });
+            focusManager.setFocused(true);
+            let stored: Company[] = [saxen];
+            const requests = stubApi(() =>
+                Response.json(
+                    page({ items: stored, totalCount: stored.length }),
+                ),
+            );
+            renderWithQuery(<CompanyResults search={search} live />);
+
+            expect(
+                await screen.findByRole('cell', { name: saxen.name }),
+            ).toBeTruthy();
+            expect(
+                screen.queryByRole('cell', { name: kamhuset.name }),
+            ).toBeNull();
+            expect(requests).toHaveLength(1);
+
+            stored = [saxen, kamhuset];
+            await vi.advanceTimersByTimeAsync(4000);
+            expect(requests).toHaveLength(1);
+
+            await vi.advanceTimersByTimeAsync(1000);
+            expect(
+                await screen.findByRole('cell', { name: kamhuset.name }),
+            ).toBeTruthy();
+            expect(requests).toHaveLength(2);
+            expect(lastOf(requests).toString()).toBe(requests[0]?.toString());
+        });
+
+        it('does not reload once the search is no longer running', async () => {
+            vi.useFakeTimers({ shouldAdvanceTime: true });
+            focusManager.setFocused(true);
+            const requests = stubApi();
+            renderWithQuery(<CompanyResults search={search} />);
+            await screen.findByRole('table');
+
+            await vi.advanceTimersByTimeAsync(15000);
+
+            expect(requests).toHaveLength(1);
         });
     });
 

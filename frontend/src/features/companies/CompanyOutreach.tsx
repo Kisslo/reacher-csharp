@@ -56,6 +56,9 @@ function applyOutreach(company: Company, body: OutreachUpdate): Company {
     };
 }
 
+/** Lets the company list see when an outreach save is in flight (T1-14). */
+export const outreachMutationKey = ['outreach'] as const;
+
 /**
  * `onRowChange` gets the optimistic row, and the old row again if the save fails.
  * The company list uses it for a pinned row from another page (T2-12), which is
@@ -84,6 +87,7 @@ export function useCompanyOutreach(
     }, [savedNote]);
 
     const mutation = useMutation({
+        mutationKey: outreachMutationKey,
         mutationFn: (body: OutreachUpdate) =>
             updateOutreach(company.orgnr, body),
         onMutate: async (body) => {

@@ -39,12 +39,13 @@ function AppContent() {
         <main className="app-main">
             <p>{commonText.welcome}</p>
             <SearchPage
-                renderResults={(search) => (
+                renderResults={(search, live) => (
                     // A new search remounts the list, so it reads its view from the URL again.
                     <WebsiteSearchProvider key={searchKey(search)}>
                         <CompanyResults
                             key={searchKey(search)}
                             search={search}
+                            live={live}
                             extraColumns={[
                                 {
                                     key: 'actions',
