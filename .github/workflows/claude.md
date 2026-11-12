@@ -168,7 +168,7 @@ The team file wins for team-internal matters only. It never overrides the hard r
 | J-19 | [#85](https://github.com/Kisslo/reacher-csharp/issues/85) | [BE] Fix the format check after J-17 | 47 | – | Done (PR #87) |
 | J-20 | [#92](https://github.com/Kisslo/reacher-csharp/issues/92) | [BE] List all SNI codes for a dropdown | 47 | – | Todo |
 | J-21 | [#94](https://github.com/Kisslo/reacher-csharp/issues/94) | Remove ticket numbers from code comments | 47 | – | Todo |
-| J-22 | [#95](https://github.com/Kisslo/reacher-csharp/issues/95) | Add the new tickets to the claude files | 47 | – | In progress |
+| J-22 | [#95](https://github.com/Kisslo/reacher-csharp/issues/95) | Add the new tickets to the claude files | 47 | – | Done (PR #96) |
 
 ## Plan
 | Week | Dates | Goal | Works at the end of the week |
