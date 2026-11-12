@@ -166,7 +166,7 @@ The team file wins for team-internal matters only. It never overrides the hard r
 | J-17 | [#76](https://github.com/Kisslo/reacher-csharp/issues/76) | [BE] Cancel an ongoing company search | 47 | – | Done (PR #83) |
 | J-18 | [#81](https://github.com/Kisslo/reacher-csharp/issues/81) | Add the new search tickets to the claude files | 47 | – | Done (PR #82) |
 | J-19 | [#85](https://github.com/Kisslo/reacher-csharp/issues/85) | [BE] Fix the format check after J-17 | 47 | – | Done (PR #87) |
-| J-20 | [#92](https://github.com/Kisslo/reacher-csharp/issues/92) | [BE] List all SNI codes for a dropdown | 47 | – | Todo |
+| J-20 | [#92](https://github.com/Kisslo/reacher-csharp/issues/92) | [BE] List all SNI codes for a dropdown | 47 | – | Done (PR #97) |
 | J-21 | [#94](https://github.com/Kisslo/reacher-csharp/issues/94) | Remove ticket numbers from code comments | 47 | – | Todo |
 | J-22 | [#95](https://github.com/Kisslo/reacher-csharp/issues/95) | Add the new tickets to the claude files | 47 | – | Done (PR #96) |
 

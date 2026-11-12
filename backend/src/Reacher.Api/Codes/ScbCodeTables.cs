@@ -50,6 +50,9 @@ public sealed class ScbCodeTables(IScbClient scb, IMemoryCache cache) : ICodeTab
         CancellationToken cancellationToken) =>
         LoadAsync(RevenueClassTableName, NoPadding, ByCode, cancellationToken);
 
+    public Task<IReadOnlyList<CodeResponse>> ListSniAsync(CancellationToken cancellationToken) =>
+        LoadAsync(SniTableName, SniWidth, ByCode, cancellationToken);
+
     public async Task<CodeResponse?> FindSniAsync(
         string code,
         CancellationToken cancellationToken)
@@ -85,7 +88,9 @@ public sealed class ScbCodeTables(IScbClient scb, IMemoryCache cache) : ICodeTab
         var codes = rows
             .Where(static row => !string.IsNullOrWhiteSpace(row.Kod)
                 && !string.IsNullOrWhiteSpace(row.Klartext))
-            .Select(row => new CodeResponse(Normalize(row.Kod!, width), row.Klartext!.Trim()));
+            .Select(row => ToCode(table, row, width))
+            .Where(static row => row is not null)
+            .Select(static row => row!);
         var arranged = arrange(codes).ToList();
 
         if (arranged.Count == 0)
@@ -113,6 +118,49 @@ public sealed class ScbCodeTables(IScbClient scb, IMemoryCache cache) : ICodeTab
     private static IEnumerable<CodeResponse> ByCode(IEnumerable<CodeResponse> rows) =>
         rows.OrderBy(static row => row.Code.Length)
             .ThenBy(static row => row.Code, StringComparer.Ordinal);
+
+    /// <summary>
+    /// One row, or null when an SNI row is not a 5-digit code. Municipality and class
+    /// rows are always kept; the caller has already dropped empty codes and names.
+    /// </summary>
+    private static CodeResponse? ToCode(string table, CodeItem row, int width)
+    {
+        var name = row.Klartext!.Trim();
+        if (table != SniTableName)
+        {
+            return new CodeResponse(Normalize(row.Kod!, width), name);
+        }
+
+        var code = DetailedSniCode(row.Kod!);
+        return code is null ? null : new CodeResponse(code, name);
+    }
+
+    /// <summary>
+    /// A detailed SNI code is 5 digits (D4). A dot is ignored, so <c>96.210</c> is
+    /// <c>96210</c>. A JSON number drops a leading zero (D12). Restoring that zero on
+    /// every short code would turn the higher level <c>9621</c> into <c>09621</c>, so
+    /// only divisions 01–03 are restored (<c>1110</c> is <c>01110</c>). Divisions 05–09
+    /// are already 5 characters in SCB's table.
+    /// </summary>
+    private static string? DetailedSniCode(string code)
+    {
+        var trimmed = code.Trim();
+        var digits = trimmed.Replace(".", "", StringComparison.Ordinal);
+        if (digits.Length == 0 || !digits.All(static digit => char.IsAsciiDigit(digit)))
+        {
+            return null;
+        }
+
+        if (digits.Length == SniWidth)
+        {
+            return digits;
+        }
+
+        var lostOneLeadingZero = !trimmed.Contains('.')
+            && digits.Length == SniWidth - 1
+            && digits[0] is '1' or '2' or '3';
+        return lostOneLeadingZero ? digits.PadLeft(SniWidth, '0') : null;
+    }
 
     /// <summary>
     /// SCB sometimes sends a code as a JSON number, which drops a leading zero (D12).

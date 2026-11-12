@@ -46,6 +46,17 @@ public static class CodeEndpoints
             .WithScbProblems();
 
         codes.MapGet(
+                "/sni",
+                async Task<Ok<IReadOnlyList<CodeResponse>>> (
+                    ICodeTables tables,
+                    CancellationToken cancellationToken) =>
+                    TypedResults.Ok(await tables.ListSniAsync(cancellationToken)))
+            .WithName("ListSni")
+            .WithSummary("List SNI codes")
+            .WithDescription("Every 5-digit SNI 2025 code from SCB, sorted by code.")
+            .WithScbProblems();
+
+        codes.MapGet(
                 "/sni/{code}",
                 async Task<Results<Ok<CodeResponse>, JsonHttpResult<CodeProblem>>> (
                     string code,

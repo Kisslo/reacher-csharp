@@ -84,6 +84,34 @@ public sealed class CodeEndpointTests
     }
 
     [Fact]
+    public async Task Sni_codes_are_returned_sorted_by_code_without_higher_levels()
+    {
+        var scb = new RecordingScbClient();
+        scb.Tables[ScbCodeTables.SniTableName] =
+        [
+            new CodeItem("96220", "Skönhetsvård"),
+            new CodeItem("96.210", "Frisörer"),
+            new CodeItem("96", "Konsumenttjänster"),
+            new CodeItem("9621", "Högre nivå"),
+            new CodeItem("1110", "Odling"),
+        ];
+        using var factory = CreateHost(scb);
+        using var client = factory.CreateClient();
+
+        var codes = await client.GetFromJsonAsync<List<CodeResponse>>(
+            new Uri("/api/codes/sni", UriKind.Relative),
+            Json);
+
+        Assert.Equal(
+            [
+                new CodeResponse("01110", "Odling"),
+                new CodeResponse("96210", "Frisörer"),
+                new CodeResponse("96220", "Skönhetsvård"),
+            ],
+            codes);
+    }
+
+    [Fact]
     public async Task An_unknown_sni_code_returns_404()
     {
         using var factory = CreateHost(WithSni());
@@ -161,6 +189,7 @@ public sealed class CodeEndpointTests
         Assert.NotNull(body["paths"]?["/api/codes/municipalities"]?["get"]);
         Assert.NotNull(body["paths"]?["/api/codes/employee-classes"]?["get"]);
         Assert.NotNull(body["paths"]?["/api/codes/revenue-classes"]?["get"]);
+        Assert.NotNull(body["paths"]?["/api/codes/sni"]?["get"]);
         Assert.NotNull(body["paths"]?["/api/codes/sni/{code}"]?["get"]);
     }
 
