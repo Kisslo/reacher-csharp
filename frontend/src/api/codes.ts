@@ -17,6 +17,10 @@ export function fetchRevenueClasses(signal?: AbortSignal): Promise<CodeItem[]> {
     return apiFetch<CodeItem[]>('/api/codes/revenue-classes', { signal });
 }
 
+export function fetchSniList(signal?: AbortSignal): Promise<CodeItem[]> {
+    return apiFetch<CodeItem[]>('/api/codes/sni', { signal });
+}
+
 export function fetchSni(
     code: string,
     signal?: AbortSignal,

@@ -5,6 +5,7 @@ import {
     fetchMunicipalities,
     fetchRevenueClasses,
     fetchSni,
+    fetchSniList,
 } from '../../api/codes';
 
 // Code lists change rarely and the server caches them for 24 hours,
@@ -29,6 +30,14 @@ export function revenueClassesQuery() {
     return queryOptions({
         queryKey: ['codes', 'revenue-classes'],
         queryFn: ({ signal }) => fetchRevenueClasses(signal),
+        staleTime: Infinity,
+    });
+}
+
+export function sniListQuery() {
+    return queryOptions({
+        queryKey: ['codes', 'sni'],
+        queryFn: ({ signal }) => fetchSniList(signal),
         staleTime: Infinity,
     });
 }

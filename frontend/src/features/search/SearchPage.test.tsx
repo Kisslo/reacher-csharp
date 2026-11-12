@@ -44,6 +44,9 @@ function stubApi(options: { job: () => Job; cancel?: () => Response }): Call[] {
             if (url === '/api/codes/municipalities') {
                 return Response.json([{ code: '0180', name: 'Stockholm' }]);
             }
+            if (url === '/api/codes/sni') {
+                return Response.json([{ code: '96210', name: 'Hårvård' }]);
+            }
             if (url === '/api/codes/sni/96210') {
                 return Response.json({ code: '96210', name: 'Hårvård' });
             }

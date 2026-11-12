@@ -1,11 +1,14 @@
 export const searchText = {
     heading: 'Sök företag',
     sniLabel: 'SNI-kod',
-    sniHint: 'Fem siffror, till exempel 96210.',
+    sniHint:
+        'Skriv en kod, till exempel 96210, eller en del av branschnamnet och välj i listan.',
     sniRequired: 'Ange en SNI-kod.',
     sniFormat: 'SNI-koden måste bestå av fem siffror.',
     sniUnknown: 'Okänd SNI-kod',
-    sniChecking: 'Kontrollerar SNI-koden...',
+    sniLoading: 'Hämtar SNI-koder...',
+    sniEmpty: 'Inga SNI-koder matchar sökningen.',
+    sniOption: (code: string, name: string) => `${code} ${name}`,
     municipalitiesLabel: 'Kommuner',
     municipalitiesHint:
         'Skriv för att söka och välj med Enter eller ett klick. Högst 20 kommuner.',
