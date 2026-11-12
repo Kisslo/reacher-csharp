@@ -245,6 +245,19 @@ public sealed class WebsiteMatcherTests
     }
 
     [Fact]
+    public void Match_drops_a_javascript_result_and_keeps_https()
+    {
+        var candidate = Assert.Single(CreateMatcher().Match(
+            "Kvarnbyns Rörteknik AB",
+            [
+                Result("javascript://example.com/%0Aalert(1)"),
+                Result("https://kvarnbynsror.se/"),
+            ]));
+
+        Assert.Equal("https://kvarnbynsror.se/", candidate.Url.AbsoluteUri);
+    }
+
+    [Fact]
     public void Match_drops_a_result_without_a_host()
     {
         var candidates = CreateMatcher().Match(
