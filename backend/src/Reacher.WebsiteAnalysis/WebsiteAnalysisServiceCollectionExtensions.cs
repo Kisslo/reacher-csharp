@@ -39,6 +39,9 @@ public static class WebsiteAnalysisServiceCollectionExtensions
             {
                 AllowAutoRedirect = false,
                 UseCookies = false,
+
+                // Through a proxy, ConnectCallback would check the proxy's address, not the site's.
+                UseProxy = false,
                 AutomaticDecompression = DecompressionMethods.All,
                 ConnectCallback = (context, cancellationToken) =>
                     SafeConnect.ConnectAsync(dns, context.DnsEndPoint, cancellationToken),

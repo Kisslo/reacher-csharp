@@ -39,7 +39,8 @@ Folder paths are a suggestion until J-02 lands. Update the table if they change.
 
 ### SSRF (D10)
 - Allow only `http`/`https`, default ports, and no credentials in the URL.
-- Resolve DNS and reject loopback, private, link-local, CGNAT (`100.64.0.0/10`), `0.0.0.0/8`, `::1`, `fc00::/7`, `fe80::/10` and IPv4-mapped IPv6 versions of them.
+- Resolve DNS and reject loopback, private, link-local, CGNAT (`100.64.0.0/10`), `0.0.0.0/8`, multicast and reserved (`224.0.0.0/4`, `240.0.0.0/4`), `198.18.0.0/15`, `0000::/8` (incl. `::`, `::1` and NAT64 `64:ff9b::/96`), `fc00::/7`, `fe80::/10`, `fec0::/10`, `ff00::/8`, 6to4 `2002::/16` and IPv4-mapped IPv6 versions of them.
+- The page fetcher never uses a proxy (`UseProxy = false`), so the connect check sees the site's address.
 - Guard against DNS rebinding: check the address actually connected to, using `SocketsHttpHandler.ConnectCallback`, not only an earlier lookup.
 - Handle redirects yourself (`AllowAutoRedirect = false`), at most 5, re-validating every hop.
 - Cap the body (2 MB) and the time (10 s) for our own checks.
@@ -75,12 +76,15 @@ Folder paths are a suggestion until J-02 lands. Update the table if they change.
 | T2-10 | [#59](https://github.com/Kisslo/reacher-csharp/issues/59) | [FE] Fix behov sorting | 47 | T2-09 | Done (PR #60) |
 | T2-11 | [#61](https://github.com/Kisslo/reacher-csharp/issues/61) | [FE] Sortable Lighthouse category columns in the company table | 47 | T2-09, T2-10 | Done (PR #67) |
 | T2-12 | [#80](https://github.com/Kisslo/reacher-csharp/issues/80) | [FE] Mark analysed companies and keep them at the top | 47 | – | Done (PR #88) |
+| T2-13 | [#100](https://github.com/Kisslo/reacher-csharp/issues/100) | [BE] Block the remaining unsafe address ranges in the URL check | 47 | – | In review |
 
 T2-05 doesn't depend on Brave, so it can start as soon as J-03 is merged, in parallel with T2-03.
 
 T2-12 settles the score-sorting open question: analysed companies from this session stay above the others on every page, and the active sort applies inside each group.
 
 ## Team status
+*2026-11-12:* T2-13 is in review. The URL check now also blocks `::` and the rest of `0000::/8`, multicast, reserved, benchmarking and 6to4 ranges, and the page fetcher no longer goes through a proxy. Follow-up idea from the review: an IPv6 allow-list (`2000::/3`) instead of a deny-list.
+
 *2026-11-09:* All Team 2 tickets T2-01–T2-11 are complete. J-16 adds Kontaktad, Samarbete, the note on the expanded row, and the called and willingness filters. A failed save keeps the previous note and both markers.
 
 ## Team 2 open questions
