@@ -15,6 +15,9 @@ public interface ICodeTables
     /// <summary>Revenue classes in code order, which is also size order.</summary>
     Task<IReadOnlyList<CodeResponse>> GetRevenueClassesAsync(CancellationToken cancellationToken);
 
+    /// <summary>Every 5-digit SNI 2025 code, sorted by code. Higher levels are left out.</summary>
+    Task<IReadOnlyList<CodeResponse>> ListSniAsync(CancellationToken cancellationToken);
+
     /// <summary>One SNI code, or null if SCB does not have it.</summary>
     Task<CodeResponse?> FindSniAsync(string code, CancellationToken cancellationToken);
 }

@@ -123,9 +123,10 @@ SCB has a table for all four lists, so no static SNI file is needed. Table names
 | `/api/codes/municipalities` | `kommunkoder` | string | By name, Swedish order |
 | `/api/codes/employee-classes` | `anstklkoder` | number | By code |
 | `/api/codes/revenue-classes` | `omsklkoder` | number | By code |
+| `/api/codes/sni` | `naringsgrenkoder` | string | 5-digit codes, by code |
 | `/api/codes/sni/{code}` | `naringsgrenkoder` | string | Lookup by code |
 
-`ScbCodeTables` reads them through `IScbClient.GetCodeTable` and caches each table for 24 hours. Municipality and SNI codes are padded to 4 and 5 digits, and a dot in an SNI code is removed. Class codes stay as delivered, because they are compared with `company.employee_class` and `company.revenue_class`.
+`ScbCodeTables` reads them through `IScbClient.GetCodeTable` and caches each table for 24 hours. Municipality and SNI codes are padded to 4 and 5 digits, and a dot in an SNI code is removed. The SNI list and the single-code lookup share that cache and keep only 5-digit codes, so a higher level such as `96` or `9621` is neither listed nor accepted in a search. A 4-digit code is kept only when it is a dropped leading zero of division 01, 02 or 03 (`1110` is `01110`). Class codes stay as delivered, because they are compared with `company.employee_class` and `company.revenue_class`.
 
 `kommunkoder` has 292 rows (measured 2026-10-30): the 290 municipalities plus `0000` (Kommunkod saknas) and `9999` (Ej svensk hemortskommun). Only codes in counties 01–25 are kept, so those two are neither listed nor accepted in a search.
 

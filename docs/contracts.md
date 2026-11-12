@@ -23,6 +23,7 @@ GET  /health
 GET  /api/codes/municipalities      → [{ code, name }]
 GET  /api/codes/employee-classes    → [{ code, name }]
 GET  /api/codes/revenue-classes     → [{ code, name }]
+GET  /api/codes/sni                 → [{ code, name }]   (5-digit SNI 2025 codes, sorted by code)
 GET  /api/codes/sni/{code}          → { code, name } | 404 sni_not_found
 ```
 

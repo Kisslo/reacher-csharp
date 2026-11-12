@@ -131,6 +131,59 @@ public sealed class ScbCodeTablesTests
     }
 
     [Fact]
+    public async Task The_sni_list_keeps_only_five_digit_codes_in_code_order()
+    {
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var scb = new RecordingScbClient();
+        scb.Tables[ScbCodeTables.SniTableName] =
+        [
+            new CodeItem("96.210", " Frisörer "),
+            new CodeItem("96220", "Skönhetsvård"),
+            new CodeItem("1110", "Odling"),
+            new CodeItem("2100", "Skog"),
+            new CodeItem("05100", "Stenkol"),
+            new CodeItem("96", "Konsumenttjänster"),
+            new CodeItem("9621", "Frisörer, högre nivå"),
+            new CodeItem("96.2", "Hår och skönhet"),
+        ];
+        var tables = new ScbCodeTables(scb, cache);
+
+        var codes = await tables.ListSniAsync(CancellationToken.None);
+
+        Assert.Equal(
+            [
+                new CodeResponse("01110", "Odling"),
+                new CodeResponse("02100", "Skog"),
+                new CodeResponse("05100", "Stenkol"),
+                new CodeResponse("96210", "Frisörer"),
+                new CodeResponse("96220", "Skönhetsvård"),
+            ],
+            codes);
+    }
+
+    [Fact]
+    public async Task The_sni_list_and_the_lookup_share_one_cached_call()
+    {
+        using var cache = new MemoryCache(new MemoryCacheOptions());
+        var scb = new RecordingScbClient();
+        scb.Tables[ScbCodeTables.SniTableName] =
+        [
+            new CodeItem("96.210", "Frisörer"),
+            new CodeItem("9621", "Högre nivå"),
+        ];
+        var tables = new ScbCodeTables(scb, cache);
+
+        var listed = await tables.ListSniAsync(CancellationToken.None);
+        var found = await tables.FindSniAsync("96210", CancellationToken.None);
+        var higherLevel = await tables.FindSniAsync("09621", CancellationToken.None);
+
+        Assert.Equal(new CodeResponse("96210", "Frisörer"), Assert.Single(listed));
+        Assert.Equal(found, listed[0]);
+        Assert.Null(higherLevel);
+        Assert.Equal(1, scb.TableCalls);
+    }
+
+    [Fact]
     public async Task A_table_is_read_again_only_after_24_hours()
     {
         var clock = new ManualClock();
