@@ -19,7 +19,7 @@ import { searchText } from '../../texts/search';
 import { sniQuery } from './codeQueries';
 import { IngestProgress } from './IngestProgress';
 import { MunicipalityPicker } from './MunicipalityPicker';
-import { SniField } from './SniField';
+import { SniPicker } from './SniPicker';
 import { errorText, validateSearch } from './searchRules';
 import type { SearchErrors } from './searchRules';
 import { readSearchFromUrl, writeSearchToUrl } from './searchUrl';
@@ -194,7 +194,7 @@ export function SearchPage({ renderResults }: SearchPageProps) {
             <h2 id="search-heading">{searchText.heading}</h2>
 
             <form className="search-form" noValidate onSubmit={handleSubmit}>
-                <SniField
+                <SniPicker
                     value={sni}
                     onChange={(value) => {
                         setSni(value);

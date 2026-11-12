@@ -4,8 +4,10 @@ import type { CodeItem } from '../../api/codes';
 import { searchText } from '../../texts/search';
 import {
     filterMunicipalities,
+    filterSni,
     isSniFormat,
     maxMunicipalities,
+    sniCodeFromText,
     validateSearch,
 } from './searchRules';
 
@@ -91,5 +93,52 @@ describe('filterMunicipalities', () => {
                 (item) => item.code,
             ),
         ).toEqual(['1280']);
+    });
+});
+
+describe('filterSni', () => {
+    const sniCodes = [
+        { code: '62100', name: 'Dataprogrammering' },
+        { code: '96210', name: 'Hårvård' },
+        { code: '96220', name: 'Skönhetsvård' },
+    ] satisfies CodeItem[];
+
+    function codesFor(filter: string): string[] {
+        return filterSni(sniCodes, filter).map((item) => item.code);
+    }
+
+    it('returns every code when the filter is blank', () => {
+        expect(filterSni(sniCodes, '  ')).toEqual(sniCodes);
+    });
+
+    it.each(['9621', '96.21', '96.210', ' 96210 '])(
+        'matches %j as a code prefix',
+        (filter) => {
+            expect(codesFor(filter)).toEqual(['96210']);
+        },
+    );
+
+    it('matches only the start of the code', () => {
+        expect(codesFor('621')).toEqual(['62100']);
+    });
+
+    it('matches part of the name with Swedish letters, ignoring case', () => {
+        expect(codesFor('hår')).toEqual(['96210']);
+        expect(codesFor('HÅR')).toEqual(['96210']);
+        expect(codesFor('vård')).toEqual(['96210', '96220']);
+    });
+});
+
+describe('sniCodeFromText', () => {
+    it.each([
+        ['96210', '96210'],
+        ['96.210', '96210'],
+        [' 96210 ', '96210'],
+        ['9621', null],
+        ['962100', null],
+        ['hårvård', null],
+        ['96210 Hårvård', null],
+    ])('reads %j as %j', (text, expected) => {
+        expect(sniCodeFromText(text)).toBe(expected);
     });
 });
