@@ -72,7 +72,7 @@ Real annual reports are messier than the fixture. These rules all come from bugs
 | T1-13 | [#78](https://github.com/Kisslo/reacher-csharp/issues/78) | [FE] Cancel button on the search progress | 47 | J-17 | Done (PR #89) |
 | T1-14 | [#79](https://github.com/Kisslo/reacher-csharp/issues/79) | [FE] Update the company table while a search is running | 47 | T1-12 | Done (PR #90) |
 | T1-15 | [#91](https://github.com/Kisslo/reacher-csharp/issues/91) | [FE] Clear the municipality search text after a pick and on Escape | 47 | – | Todo |
-| T1-16 | [#93](https://github.com/Kisslo/reacher-csharp/issues/93) | [FE] SNI dropdown in the search form | 47 | J-20 | Todo |
+| T1-16 | [#93](https://github.com/Kisslo/reacher-csharp/issues/93) | [FE] SNI dropdown in the search form | 47 | J-20 | Done (PR #99) |
 
 Week 45 is the heaviest. If something slips, T1-08 can wait (only T1-09 in week 47 needs it).
 
