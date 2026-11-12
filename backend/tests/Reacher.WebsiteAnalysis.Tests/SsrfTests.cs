@@ -16,6 +16,7 @@ public sealed class SsrfTests
     [InlineData("http://[::1]/")]
     [InlineData("http://[fe80::1]/")]
     [InlineData("http://[::ffff:10.0.0.1]/")]
+    [InlineData("http://[::]/")]
     [InlineData("file:///etc/passwd")]
     [InlineData("http://user:pass@203.0.113.10/")]
     [InlineData("http://203.0.113.10:8080/")]
@@ -70,13 +71,16 @@ public sealed class SsrfTests
         Assert.Equal(0, harness.PageSpeed.Calls);
     }
 
-    [Fact]
-    public async Task A_redirect_to_a_private_address_is_rejected()
+    [Theory]
+    [InlineData("http://10.0.0.1/")]
+    [InlineData("http://[::]/")]
+    public async Task A_redirect_to_a_blocked_address_is_rejected(string target)
     {
+        var targetHost = new Uri(target).Host;
         using var harness = AnalysisHarness.Create(
             page: (request, _) =>
             {
-                if (request.RequestUri?.Host == "10.0.0.1")
+                if (request.RequestUri?.Host == targetHost)
                 {
                     return AnalysisHarness.Reject(request, CancellationToken.None);
                 }
@@ -84,7 +88,7 @@ public sealed class SsrfTests
                 return Task.FromResult(
                     new HttpResponseMessage(HttpStatusCode.Redirect)
                     {
-                        Headers = { Location = new Uri("http://10.0.0.1/") },
+                        Headers = { Location = new Uri(target) },
                     });
             },
             pageSpeed: (_, _) => Task.FromResult(AnalysisHarness.Json("{}")));
@@ -95,7 +99,7 @@ public sealed class SsrfTests
         Assert.Equal(AnalysisException.InvalidUrlCode, exception.Code);
         Assert.Equal("The URL is not allowed.", exception.Message);
         Assert.Equal(1, harness.Page.Calls);
-        Assert.DoesNotContain("10.0.0.1", harness.Page.Hosts);
+        Assert.DoesNotContain(targetHost, harness.Page.Hosts);
     }
 
     [Fact]
