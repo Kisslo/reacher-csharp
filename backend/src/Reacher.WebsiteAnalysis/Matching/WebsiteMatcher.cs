@@ -27,7 +27,10 @@ public sealed class WebsiteMatcher
         var scored = new List<ScoredResult>(Math.Min(results.Count, 3));
         foreach (var result in results.Take(3))
         {
-            if (!TryGetHost(result.Url, out var host) || IsBlocked(host))
+            // javascript://example.com/ still has a host. Only http and https may be offered.
+            if (!HasWebScheme(result.Url)
+                || !TryGetHost(result.Url, out var host)
+                || IsBlocked(host))
             {
                 continue;
             }
@@ -123,6 +126,10 @@ public sealed class WebsiteMatcher
 
         return false;
     }
+
+    private static bool HasWebScheme(Uri url) =>
+        url.IsAbsoluteUri
+        && (url.Scheme == Uri.UriSchemeHttp || url.Scheme == Uri.UriSchemeHttps);
 
     private static bool TryGetHost(Uri url, out string host)
     {

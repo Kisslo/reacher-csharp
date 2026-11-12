@@ -27,7 +27,9 @@ public sealed class FakeBraveSearchClient : IBraveSearchClient
         ArgumentException.ThrowIfNullOrWhiteSpace(query);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (string.Equals(query, NoWebsiteCompanyName, StringComparison.OrdinalIgnoreCase))
+        // WebsiteQuery.Build quotes the name and may append " {city} website",
+        // so the query the service sends is never the bare company name.
+        if (NamesNoWebsiteCompany(query))
         {
             return Task.FromResult<IReadOnlyList<BraveSearchResult>>([]);
         }
@@ -47,5 +49,17 @@ public sealed class FakeBraveSearchClient : IBraveSearchClient
         ];
 
         return Task.FromResult(results);
+    }
+
+    private static bool NamesNoWebsiteCompany(string query)
+    {
+        if (string.Equals(query, NoWebsiteCompanyName, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return query.Contains(
+            $"\"{NoWebsiteCompanyName}\"",
+            StringComparison.OrdinalIgnoreCase);
     }
 }

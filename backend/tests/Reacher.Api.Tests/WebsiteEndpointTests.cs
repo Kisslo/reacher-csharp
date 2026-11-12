@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
@@ -62,6 +63,61 @@ public sealed class WebsiteEndpointTests(CompanySearchFixture postgres)
         Assert.Equal("\"Alpha\" Teststad website", candidate["title"]!.GetValue<string>());
         Assert.Equal("low", candidate["confidence"]!.GetValue<string>());
         Assert.False(candidate["preselected"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public async Task Candidate_service_returns_no_candidates_for_the_no_website_company()
+    {
+        const string orgnr = "5599001050";
+        await using var host = CreateHost();
+        await using (var scope = host.Factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ReacherDbContext>();
+            db.Companies.Add(new Company
+            {
+                Orgnr = orgnr,
+                Name = FakeBraveSearchClient.NoWebsiteCompanyName,
+                Sni = "96210",
+                LegalForm = "49",
+                CompanyStatus = "1",
+                EmployeeClass = "1",
+                RevenueClass = "1",
+                RevenueClassYear = 2025,
+                AdBlockType = "1",
+                UpdatedAt = DateTimeOffset.UtcNow,
+            });
+            db.Workplaces.Add(new Workplace
+            {
+                Cfar = "90000050",
+                Orgnr = orgnr,
+                Sni = "96210",
+                Municipality = "0180",
+                Street = "Testgatan 1",
+                PostalCode = "111 20",
+                City = "Teststad",
+                WorkplaceStatus = "1",
+                AdBlockType = "1",
+                UpdatedAt = DateTimeOffset.UtcNow,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        try
+        {
+            await using var scope = host.Factory.Services.CreateAsyncScope();
+            var service = scope.ServiceProvider.GetRequiredService<IWebsiteCandidateService>();
+
+            var response = await service.FindAsync(orgnr, CancellationToken.None);
+
+            Assert.NotNull(response);
+            Assert.Empty(response.Candidates);
+        }
+        finally
+        {
+            await using var scope = host.Factory.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ReacherDbContext>();
+            await db.Companies.Where(company => company.Orgnr == orgnr).ExecuteDeleteAsync();
+        }
     }
 
     [Theory]

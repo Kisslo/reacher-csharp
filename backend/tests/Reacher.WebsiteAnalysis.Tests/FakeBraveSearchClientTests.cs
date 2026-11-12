@@ -27,16 +27,30 @@ public sealed class FakeBraveSearchClientTests
             client.SearchAsync("Example Company", cancellationSource.Token));
     }
 
+    [Theory]
+    [InlineData(FakeBraveSearchClient.NoWebsiteCompanyName)]
+    [InlineData("\"No Website Company\"")]
+    [InlineData("\"No Website Company\" Teststad website")]
+    [InlineData("\"no website company\" Göteborg website")]
+    public async Task SearchAsync_returns_no_results_for_the_no_website_fixture(string query)
+    {
+        var client = new FakeBraveSearchClient();
+
+        var results = await client.SearchAsync(query, CancellationToken.None);
+
+        Assert.Empty(results);
+    }
+
     [Fact]
-    public async Task SearchAsync_returns_no_results_for_the_no_website_fixture()
+    public async Task SearchAsync_keeps_a_longer_quoted_name()
     {
         var client = new FakeBraveSearchClient();
 
         var results = await client.SearchAsync(
-            FakeBraveSearchClient.NoWebsiteCompanyName,
+            "\"No Website Company Extra\" Malmö website",
             CancellationToken.None);
 
-        Assert.Empty(results);
+        Assert.NotEmpty(results);
     }
 
     [Fact]
