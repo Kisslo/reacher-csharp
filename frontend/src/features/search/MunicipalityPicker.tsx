@@ -69,9 +69,16 @@ export function MunicipalityPicker({
     function toggle(code: string) {
         if (selected.includes(code)) {
             onChange(selected.filter((selectedCode) => selectedCode !== code));
-        } else if (!isFull) {
+        } else if (isFull) {
+            // Nothing changes when the list is full, so keep what the user typed.
+            return;
+        } else {
             onChange([...selected, code]);
         }
+
+        // Start the next search from an empty box. The list stays open and focus stays in the input.
+        setFilter('');
+        setActiveIndex(0);
     }
 
     function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -96,9 +103,14 @@ export function MunicipalityPicker({
                 }
                 return;
             case 'Escape':
+                // WAI-ARIA combobox: the first Escape closes the list, the next one clears the text.
                 if (open) {
                     event.preventDefault();
                     setOpen(false);
+                } else if (filter !== '') {
+                    event.preventDefault();
+                    setFilter('');
+                    setActiveIndex(0);
                 }
                 return;
             case 'Backspace':

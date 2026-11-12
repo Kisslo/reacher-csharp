@@ -94,6 +94,73 @@ describe('MunicipalityPicker', () => {
         expect(screen.queryByRole('listbox')).toBeNull();
     });
 
+    it('clears the text and keeps the list open after a pick by click', async () => {
+        const { user, input } = await renderPicker();
+
+        await user.type(input, 'Malm');
+        await user.click(screen.getByRole('option', { name: 'Malmö' }));
+
+        expect((input as HTMLInputElement).value).toBe('');
+        expect(document.activeElement).toBe(input);
+        expect(screen.getAllByRole('option')).toHaveLength(
+            municipalities.length,
+        );
+        const selected = screen.getByRole('list', {
+            name: searchText.selectedMunicipalities,
+        });
+        expect(selected.textContent).toContain('Malmö');
+    });
+
+    it('clears the text and keeps the list open after a pick with Enter', async () => {
+        const { user, input } = await renderPicker();
+
+        await user.type(input, 'Göte');
+        await user.keyboard('{Enter}');
+
+        expect((input as HTMLInputElement).value).toBe('');
+        expect(screen.getByRole('listbox')).toBeTruthy();
+        const selected = screen.getByRole('list', {
+            name: searchText.selectedMunicipalities,
+        });
+        expect(selected.textContent).toContain('Göteborg');
+    });
+
+    it('clears the text after removing a municipality from the list', async () => {
+        const { user, input } = await renderPicker(['0180', '1280']);
+
+        await user.type(input, 'Stock');
+        await user.keyboard('{Enter}');
+
+        expect((input as HTMLInputElement).value).toBe('');
+        const selected = screen.getByRole('list', {
+            name: searchText.selectedMunicipalities,
+        });
+        expect(selected.textContent).not.toContain('Stockholm');
+        expect(selected.textContent).toContain('Malmö');
+    });
+
+    it('closes the list on the first Escape and clears the text on the second', async () => {
+        const { user, input } = await renderPicker(['0180']);
+
+        await user.type(input, 'Malm');
+        expect(screen.getByRole('listbox')).toBeTruthy();
+
+        await user.keyboard('{Escape}');
+        expect(screen.queryByRole('listbox')).toBeNull();
+        expect((input as HTMLInputElement).value).toBe('Malm');
+
+        await user.keyboard('{Escape}');
+        expect((input as HTMLInputElement).value).toBe('');
+        expect(screen.queryByRole('listbox')).toBeNull();
+
+        // A third Escape on an empty box does nothing.
+        await user.keyboard('{Escape}');
+        const selected = screen.getByRole('list', {
+            name: searchText.selectedMunicipalities,
+        });
+        expect(selected.textContent).toContain('Stockholm');
+    });
+
     it('removes the last chip with Backspace when the filter is empty', async () => {
         const { user } = await renderPicker(['0180', '1280']);
 
@@ -124,6 +191,8 @@ describe('MunicipalityPicker', () => {
         await user.type(input, 'Kommun 21');
         await user.keyboard('{ArrowDown}{Enter}');
 
+        // Nothing was added, so the typed text stays.
+        expect((input as HTMLInputElement).value).toBe('Kommun 21');
         const selected = screen.getByRole('list', {
             name: searchText.selectedMunicipalities,
         });
