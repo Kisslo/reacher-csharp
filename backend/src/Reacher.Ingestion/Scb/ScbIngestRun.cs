@@ -38,4 +38,10 @@ public sealed class ScbIngestRun
     /// is deleted when the run completes.
     /// </summary>
     internal HashSet<string> Cfars { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Workplaces SCB lists in the requested municipalities but marks as not eligible (D5).
+    /// They are deleted as soon as SCB's list has been read, not at the end (D19).
+    /// </summary>
+    internal HashSet<string> IneligibleCfars { get; } = new(StringComparer.Ordinal);
 }
