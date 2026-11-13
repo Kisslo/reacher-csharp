@@ -206,6 +206,21 @@ public sealed class SearchEndpointTests
     }
 
     [Fact]
+    public async Task Scb_timeout_returns_502_without_the_exception_message()
+    {
+        const string secret = "https://sentinel.example.test/do-not-log";
+        using var factory = CreateFakeHost(codes: new ThrowingCodeLookup(new TaskCanceledException(secret)));
+        using var client = factory.CreateClient();
+
+        var response = await PostSearch(client, "96210", ["0180"], refresh: false);
+
+        var body = await ReadProblem(response, HttpStatusCode.BadGateway);
+        Assert.Equal("scb_unavailable", body["code"]!.GetValue<string>());
+        Assert.Equal("SCB is unavailable.", body["title"]!.GetValue<string>());
+        Assert.DoesNotContain("sentinel.example.test", body.ToJsonString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Scb_failure_returns_502_without_the_upstream_message()
     {
         using var factory = CreateFakeHost(codes: new UnavailableCodeLookup());
@@ -324,6 +339,17 @@ public sealed class SearchEndpointTests
 
     private static List<string> Fields(JsonObject body) =>
         body["errors"]!.AsArray().Select(error => error!["field"]!.GetValue<string>()).ToList();
+
+    private sealed class ThrowingCodeLookup(Exception exception) : ICodeLookup
+    {
+        public Task<bool> IsKnownSniAsync(string sni, CancellationToken cancellationToken) =>
+            Task.FromException<bool>(exception);
+
+        public Task<IReadOnlyList<string>> UnknownMunicipalitiesAsync(
+            IReadOnlyCollection<string> municipalities,
+            CancellationToken cancellationToken) =>
+            Task.FromException<IReadOnlyList<string>>(exception);
+    }
 
     private sealed class UnavailableCodeLookup : ICodeLookup
     {

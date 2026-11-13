@@ -190,6 +190,76 @@ public sealed class WebsiteEndpointTests(CompanySearchFixture postgres)
     }
 
     [Fact]
+    public async Task Candidates_returns_502_when_brave_cannot_be_reached()
+    {
+        const string secret = "https://sentinel.example.test/do-not-log";
+        await using var host = CreateHost(brave: new ThrowingBraveClient(new HttpRequestException(secret)));
+        using var client = host.CreateClient();
+
+        var response = await client.PostAsync(
+            "/api/companies/5599001001/website-candidates",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+        var body = await ReadProblem(response);
+        Assert.Equal("brave_unavailable", body["code"]!.GetValue<string>());
+        Assert.DoesNotContain("sentinel.example.test", body.ToJsonString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Candidates_returns_502_when_brave_times_out()
+    {
+        const string secret = "https://sentinel.example.test/do-not-log";
+        await using var host = CreateHost(
+            brave: new ThrowingBraveClient(new TaskCanceledException(secret)));
+        using var client = host.CreateClient();
+
+        var response = await client.PostAsync(
+            "/api/companies/5599001001/website-candidates",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+        var body = await ReadProblem(response);
+        Assert.Equal("brave_unavailable", body["code"]!.GetValue<string>());
+        Assert.DoesNotContain("sentinel.example.test", body.ToJsonString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task An_unexpected_error_is_a_fixed_problem_without_the_exception_message()
+    {
+        const string secret = "https://sentinel.example.test/do-not-log";
+        var logs = new RecordingLoggerProvider();
+        await using var host = CreateHost(
+            brave: new ThrowingBraveClient(new InvalidOperationException(secret)),
+            logs: logs);
+        using var client = host.CreateClient();
+
+        var response = await client.PostAsync(
+            "/api/companies/5599001001/website-candidates",
+            content: null);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal(
+            "application/problem+json",
+            response.Content.Headers.ContentType?.MediaType);
+        var body = await response.Content.ReadFromJsonAsync<JsonObject>(JsonOptions);
+        Assert.NotNull(body);
+        Assert.Equal("internal_error", body["code"]!.GetValue<string>());
+        Assert.Equal(500, body["status"]!.GetValue<int>());
+        Assert.Equal("An unexpected error occurred.", body["title"]!.GetValue<string>());
+        Assert.False(body.ContainsKey("detail"));
+        var text = body.ToJsonString();
+        Assert.DoesNotContain("sentinel.example.test", text, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("InvalidOperationException", text, StringComparison.Ordinal);
+        Assert.Contains(
+            logs.Messages,
+            message => message.Contains("InvalidOperationException", StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            logs.Messages,
+            message => message.Contains("sentinel.example.test", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task Candidates_does_not_echo_a_brave_failure()
     {
         const string secret = "https://sentinel.example.test/do-not-log";

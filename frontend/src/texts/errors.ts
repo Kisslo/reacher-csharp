@@ -1,4 +1,5 @@
 const errorMessages: Record<string, string> = {
+    analysis_fetch_failed: 'Sidan kunde inte hämtas. Försök igen.',
     analysis_timeout: 'Analysen tog för lång tid. Försök igen.',
     brave_quota_exceeded: 'Sökgränsen för månaden är nådd.',
     brave_unavailable:
@@ -10,12 +11,14 @@ const errorMessages: Record<string, string> = {
         'Filtren är inte giltiga. Kontrollera värdena och försök igen.',
     invalid_sni: 'SNI-koden måste bestå av fem siffror.',
     invalid_url: 'Webbadressen är inte giltig.',
+    internal_error: 'Ett oväntat fel inträffade. Försök igen.',
     job_not_cancellable: 'Sökningen är redan avslutad och kan inte avbrytas.',
     job_not_found: 'Sökjobbet hittades inte.',
     note_rejected:
         'Anteckningen sparades inte. Ta bort webbadresser och personnummer, och håll den under 500 tecken.',
     scb_unavailable: 'SCB kan inte nås just nu. Försök igen senare.',
     sni_not_found: 'SNI-koden kunde inte hittas.',
+    unauthenticated: 'Lösenord krävs för att fortsätta.',
 };
 
 export function getErrorMessage(code: string | undefined): string {

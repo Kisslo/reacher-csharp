@@ -249,6 +249,25 @@ public sealed class CompanySearchEndpointTests(CompanySearchFixture postgres)
         Assert.True(missing.Stale);
     }
 
+    [Fact]
+    public async Task Search_rejects_a_page_that_does_not_fit_in_an_int()
+    {
+        using var client = CreateClient();
+
+        // int.MaxValue. With the default page size the product does not fit.
+        var response = await client.GetAsync(
+            "/api/companies?sni=96210&municipality=0180&page=2147483647");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "application/problem+json",
+            response.Content.Headers.ContentType?.MediaType);
+        var body = await response.Content.ReadFromJsonAsync<JsonObject>();
+        Assert.Equal("invalid_search_query", body!["code"]!.GetValue<string>());
+        var error = Assert.Single(body["errors"]!.AsArray());
+        Assert.Equal("page", error!["parameter"]!.GetValue<string>());
+    }
+
     [Theory]
     [InlineData("/api/companies?municipality=0180")]
     [InlineData("/api/companies?sni=96210")]

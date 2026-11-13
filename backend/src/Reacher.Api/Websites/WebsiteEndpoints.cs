@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using Reacher.Api.Errors;
 using Reacher.WebsiteAnalysis.Analysis;
 using Reacher.WebsiteAnalysis.Brave;
 
@@ -42,6 +43,17 @@ public static class WebsiteEndpoints
                     }
                     catch (BraveSearchException)
                     {
+                        return Problem(
+                            StatusCodes.Status502BadGateway,
+                            "brave_unavailable",
+                            "Brave Search is unavailable.");
+                    }
+                    catch (Exception exception) when (UpstreamFailures.IsTransport(
+                        exception,
+                        cancellationToken))
+                    {
+                        // A network error or the 10 second timeout is not a
+                        // BraveSearchException. The quota was already counted.
                         return Problem(
                             StatusCodes.Status502BadGateway,
                             "brave_unavailable",

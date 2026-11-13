@@ -17,6 +17,8 @@ public static class BraveServiceCollectionExtensions
                     .Value;
 
                 httpClient.BaseAddress = new Uri(options.BaseAddress);
+                // Without this, HttpClient waits 100 seconds. One click should not.
+                httpClient.Timeout = TimeSpan.FromSeconds(BraveSearchClient.TimeoutSeconds);
             })
             .RemoveAllLoggers();
 

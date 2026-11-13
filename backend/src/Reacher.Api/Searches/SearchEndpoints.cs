@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Reacher.Api.Errors;
 using Reacher.Ingestion.Jobs;
 using Reacher.Ingestion.Scb;
 
@@ -62,6 +63,15 @@ public static class SearchEndpoints
                     catch (ScbException)
                     {
                         // The SCB message can name a route. The response stays a fixed sentence.
+                        return Unavailable(
+                            StatusCodes.Status502BadGateway,
+                            "SCB is unavailable.");
+                    }
+                    catch (Exception exception) when (UpstreamFailures.IsTransport(
+                        exception,
+                        cancellationToken))
+                    {
+                        // A network error or a Polly timeout is not an ScbException.
                         return Unavailable(
                             StatusCodes.Status502BadGateway,
                             "SCB is unavailable.");

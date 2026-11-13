@@ -10,7 +10,7 @@ internal sealed class RecordingScbClient : IScbClient
     public Dictionary<string, IReadOnlyList<CodeItem>> Tables { get; } = [];
 
     /// <summary>When set, every table call throws this.</summary>
-    public ScbException? Failure { get; set; }
+    public Exception? Failure { get; set; }
 
     public Task<IReadOnlyList<CodeItem>> GetCodeTable(
         string table,

@@ -52,6 +52,8 @@ public static partial class CompanySearchQueryValidator
         var willing = ParseBoolean(query.Willing, "willing", validationErrors);
         var page = ParsePositiveInt(query.Page, "page", 1, validationErrors);
         var pageSize = ParsePositiveInt(query.PageSize, "pageSize", 50, validationErrors);
+        var pageWasParsed = !HasParameterError(validationErrors, "page");
+        var pageSizeWasParsed = !HasParameterError(validationErrors, "pageSize");
 
         var sort = NormalizeSingleValue(query.Sort, "name");
         if (!SortFields.Contains(sort, StringComparer.Ordinal))
@@ -72,6 +74,18 @@ public static partial class CompanySearchQueryValidator
         if (pageSize > 200)
         {
             validationErrors.Add(new("pageSize", "The pageSize query parameter cannot exceed 200."));
+        }
+
+        // page * pageSize has to fit in an int. The SQL offset is that product
+        // minus one page, and an overflowing int wraps negative. Postgres then
+        // rejects the query.
+        if (pageWasParsed
+            && pageSizeWasParsed
+            && (long)page * pageSize > int.MaxValue)
+        {
+            validationErrors.Add(new(
+                "page",
+                "The page query parameter is too large for this page size."));
         }
 
         if (registeredFrom is not null
@@ -123,6 +137,11 @@ public static partial class CompanySearchQueryValidator
         errors = [];
         return true;
     }
+
+    private static bool HasParameterError(
+        List<CompanySearchQueryError> errors,
+        string parameter) =>
+        errors.Exists(error => error.Parameter == parameter);
 
     private static List<string> NormalizeValues(IEnumerable<string> values) =>
         values
