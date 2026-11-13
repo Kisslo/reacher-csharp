@@ -194,13 +194,16 @@ describe('compareCompanies', () => {
         expect(sorted(rows, 'registeredAt', 'desc')).toEqual(['1', '3', '2']);
     });
 
-    it('sorts the employee class code', () => {
+    it('sorts employee classes by size, with class 0 last', () => {
+        // Text order puts "10" before "2". Class 0 is "uppgift saknas".
         const rows = [
-            company('1', 'A', { employeeClass: '3' }),
-            company('2', 'B', { employeeClass: '1' }),
+            company('10', 'Ten', { employeeClass: '10' }),
+            company('0', 'Missing', { employeeClass: '0' }),
+            company('2', 'Two', { employeeClass: '2' }),
         ];
 
-        expect(sorted(rows, 'employeeClass', 'asc')).toEqual(['2', '1']);
+        expect(sorted(rows, 'employeeClass', 'asc')).toEqual(['2', '10', '0']);
+        expect(sorted(rows, 'employeeClass', 'desc')).toEqual(['10', '2', '0']);
     });
 
     it('breaks a tie on orgnr, ascending in both directions', () => {
