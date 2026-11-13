@@ -15,7 +15,7 @@ const errorMessages: Record<string, string> = {
     job_not_cancellable: 'Sökningen är redan avslutad och kan inte avbrytas.',
     job_not_found: 'Sökjobbet hittades inte.',
     note_rejected:
-        'Anteckningen sparades inte. Ta bort webbadresser och personnummer, och håll den under 500 tecken.',
+        'Anteckningen sparades inte. Ta bort webbadresser och långa nummer (personnummer, organisationsnummer, telefonnummer), och håll den under 500 tecken.',
     scb_unavailable: 'SCB kan inte nås just nu. Försök igen senare.',
     sni_not_found: 'SNI-koden kunde inte hittas.',
     unauthenticated: 'Lösenord krävs för att fortsätta.',

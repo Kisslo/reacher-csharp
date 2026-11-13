@@ -105,10 +105,15 @@ public static partial class OutreachEndpoints
             statusCode: status,
             contentType: "application/problem+json");
 
-    [GeneratedRegex(@"https?://", RegexOptions.IgnoreCase)]
+    // http://, https:// or a www. address. A bare domain such as foretag.se is not
+    // caught, because a looser pattern would also match abbreviations like "t.ex.".
+    [GeneratedRegex(@"https?://|\bwww\.", RegexOptions.IgnoreCase)]
     private static partial Regex UrlPattern();
 
-    [GeneratedRegex(@"(?<!\d)(?:19|20)\d{8}(?:\d{2})?(?!\d)")]
+    // Personnummer-like: 6 or 8 digits, an optional - or +, then 4 digits
+    // (YYMMDD-NNNN, YYYYMMDDNNNN and so on). There is no date check and no digit
+    // boundary, so orgnr, phone numbers and longer digit runs are rejected too.
+    [GeneratedRegex(@"\d{6}(?:\d{2})?[-+]?\d{4}")]
     private static partial Regex PersonnummerPattern();
 }
 
