@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.HttpResults;
+using Reacher.Api.Errors;
 using Reacher.Ingestion.Scb;
 
 namespace Reacher.Api.Codes;
@@ -117,6 +118,16 @@ public static class CodeEndpoints
         catch (ScbException)
         {
             // The SCB message can name a route. The response stays a fixed sentence.
+            return Problem(
+                StatusCodes.Status502BadGateway,
+                "scb_unavailable",
+                "SCB is unavailable.");
+        }
+        catch (Exception exception) when (UpstreamFailures.IsTransport(
+            exception,
+            context.HttpContext.RequestAborted))
+        {
+            // A network error or a Polly timeout is not an ScbException.
             return Problem(
                 StatusCodes.Status502BadGateway,
                 "scb_unavailable",

@@ -64,9 +64,10 @@ public sealed class CompanyQueryService(
         command.Parameters.Add(new NpgsqlParameter<string>("sort", parameters.Sort));
         command.Parameters.Add(new NpgsqlParameter<string>("order", parameters.Order));
         command.Parameters.Add(new NpgsqlParameter<int>("page_size", parameters.PageSize));
+        // checked: a product that does not fit must not wrap to a negative offset.
         command.Parameters.Add(new NpgsqlParameter<int>(
             "page_offset",
-            (parameters.Page - 1) * parameters.PageSize));
+            checked((parameters.Page - 1) * parameters.PageSize)));
         command.Parameters.Add(new NpgsqlParameter<DateTimeOffset>("stale_cutoff", time.GetUtcNow()
             .AddDays(-ingestOptions.Value.FreshnessDays)));
     }

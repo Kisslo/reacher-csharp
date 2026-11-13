@@ -6,6 +6,7 @@ using Reacher.Api;
 using Reacher.Api.AccessGate;
 using Reacher.Api.Codes;
 using Reacher.Api.Companies;
+using Reacher.Api.Errors;
 using Reacher.Api.Searches;
 using Reacher.Api.Websites;
 using Reacher.Data;
@@ -79,10 +80,33 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 builder.Services.AddOpenApi();
 
+// UseExceptionHandler() needs either an error page or problem details.
+// InternalErrorExceptionHandler writes the body. This callback is only the
+// fallback, and it still must not copy the exception message (hard rule 6).
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        if (context.ProblemDetails.Status != StatusCodes.Status500InternalServerError)
+        {
+            return;
+        }
+
+        context.ProblemDetails.Detail = null;
+        context.ProblemDetails.Type = "https://httpstatuses.com/500";
+        context.ProblemDetails.Title = "An unexpected error occurred.";
+        context.ProblemDetails.Extensions["code"] = "internal_error";
+    };
+});
+builder.Services.AddExceptionHandler<InternalErrorExceptionHandler>();
+
 var app = builder.Build();
 
-// First in the pipeline, so everything added later sits behind it. Reading Value
-// validates the options, so a bad password stops startup before migrations run.
+// Outermost, so an exception from anything later becomes problem+json.
+// A client abort is turned into 499 here and is not an internal error.
+app.UseExceptionHandler();
+
+// Reading Value validates the options, so a bad password stops startup before migrations run.
 if (app.Services.GetRequiredService<IOptions<AccessGateOptions>>().Value.Enabled)
 {
     app.UseMiddleware<AccessGateMiddleware>();

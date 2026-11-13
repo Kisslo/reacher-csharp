@@ -144,6 +144,23 @@ public sealed class CodeEndpointTests
     }
 
     [Fact]
+    public async Task Scb_network_error_returns_502_without_the_exception_message()
+    {
+        const string secret = "https://sentinel.example.test/do-not-log";
+        var scb = new RecordingScbClient { Failure = new HttpRequestException(secret) };
+        using var factory = CreateHost(scb);
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync(
+            new Uri("/api/codes/municipalities", UriKind.Relative));
+
+        var body = await ReadProblem(response, HttpStatusCode.BadGateway);
+        Assert.Equal("scb_unavailable", body["code"]!.GetValue<string>());
+        Assert.Equal("SCB is unavailable.", body["title"]!.GetValue<string>());
+        Assert.DoesNotContain("sentinel.example.test", body.ToJsonString(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Scb_failure_returns_502_without_the_upstream_message()
     {
         var scb = new RecordingScbClient

@@ -15,6 +15,9 @@ public sealed class BraveSearchClient(
     IBraveRequestRateLimiter rateLimiter,
     IBraveUsageCounter usageCounter) : IBraveSearchClient
 {
+    /// <summary>One search. Shorter than HttpClient's 100 second default.</summary>
+    public const int TimeoutSeconds = 10;
+
     private const int ResultCount = 3;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
