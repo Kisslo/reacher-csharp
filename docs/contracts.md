@@ -66,8 +66,10 @@ PUT  /api/companies/{orgnr}/outreach
      body { called: bool, willing: bool | null, note: string | null }
      → 204
      → 404 company_not_found
-     → 400 note_rejected for a note over 500 characters, containing an URL,
-       or containing a 10- or 12-digit number starting with 19 or 20.
+     → 400 note_rejected for a note over 500 characters, containing a web address
+       (http://, https:// or www.), or containing a personnummer-like number:
+       6 or 8 digits, an optional - or +, then 4 digits (YYMMDD-NNNN, YYYYMMDDNNNN).
+       There is no date check, so orgnr and phone numbers of that shape are rejected too.
 ```
 
 ### Websites

@@ -105,8 +105,16 @@ public sealed class OutreachEndpointTests(CompanySearchFixture postgres)
 
     [Theory]
     [InlineData("https://example.test")]
-    [InlineData("Call 199001011234 later")]
-    [InlineData("Call 1990010123 later")]
+    [InlineData("Se http://example.test")]
+    [InlineData("Se www.foretag.test")]
+    [InlineData("Se WWW.FORETAG.TEST")]
+    [InlineData("Ring 198013011234 igen")]
+    [InlineData("Ring 19801301-1234 igen")]
+    [InlineData("Ring 8013011234 igen")]
+    [InlineData("Ring 801301-1234 igen")]
+    [InlineData("Ring 801301+1234 igen")]
+    [InlineData("Orgnr 559900-1001")]
+    [InlineData("Mobil 0701234567")]
     public async Task Outreach_rejects_urls_and_personnummer_like_notes(string note)
     {
         await ResetAsync();
@@ -119,6 +127,29 @@ public sealed class OutreachEndpointTests(CompanySearchFixture postgres)
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonObject>();
         Assert.Equal("note_rejected", body!["code"]!.GetValue<string>());
+
+        await using var db = postgres.CreateContext();
+        Assert.False(await db.CompanyOutreach.AnyAsync(item => item.Orgnr == Orgnr));
+    }
+
+    [Theory]
+    [InlineData("Ring nästa vecka")]
+    [InlineData("Möte 2026-11-20 kl 14:00, t.ex. om priser")]
+    [InlineData("Offert 12345, ring 2 gånger")]
+    public async Task Outreach_accepts_normal_notes(string note)
+    {
+        await ResetAsync();
+        using var client = CreateClient();
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/companies/{Orgnr}/outreach",
+            new { called = true, willing = (bool?)null, note });
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        var search = await client.GetFromJsonAsync<CompanySearchResponse>(
+            "/api/companies?sni=96210&municipality=0180");
+        var item = Assert.Single(search!.Items, item => item.Orgnr == Orgnr);
+        Assert.Equal(note, item.Note);
     }
 
     [Fact]
