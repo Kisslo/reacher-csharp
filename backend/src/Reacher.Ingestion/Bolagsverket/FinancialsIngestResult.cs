@@ -1,7 +1,8 @@
 namespace Reacher.Ingestion.Bolagsverket;
 
 /// <summary>
-/// Counts from one financials ingest run, for the log, T1-07 and the real-run numbers in a PR.
+/// Counts from one financials ingest run, for the ingest worker's log and the real-run
+/// numbers in a PR.
 /// Counts only: never an orgnr, a name or an amount.
 /// </summary>
 /// <remarks>A record, so <c>ToString()</c> prints every count for the log line.</remarks>

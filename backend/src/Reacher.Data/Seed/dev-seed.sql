@@ -1,4 +1,4 @@
--- Fictional dev data, so T2-01 and the frontend can be built before ingest exists (T1-01).
+-- Fictional dev data, so the company search and the frontend can run without a real ingest.
 --
 -- Every name, street, orgnr and amount is made up. Each orgnr has the shape of an
 -- aktiebolag's but a deliberately wrong check digit, so it cannot belong to a real company.

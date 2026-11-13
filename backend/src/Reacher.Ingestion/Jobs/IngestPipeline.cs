@@ -17,8 +17,9 @@ public interface IIngestPipeline
 }
 
 /// <summary>
-/// T1-05, then T1-06 for the companies the search shows, then the SCB completion. Scoped: both
-/// services share one DbContext per job.
+/// <see cref="ScbIngestService"/>, then <see cref="FinancialsIngestService"/> for the
+/// companies the search shows, then <see cref="ScbIngestService.CompleteAsync"/>. Scoped:
+/// both services share one DbContext per job.
 /// </summary>
 public sealed class IngestPipeline(
     ScbIngestService scb,

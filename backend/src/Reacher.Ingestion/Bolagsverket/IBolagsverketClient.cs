@@ -2,8 +2,8 @@ namespace Reacher.Ingestion.Bolagsverket;
 
 /// <summary>
 /// Bolagsverket's API for valuable datasets (annual reports). Returns what Bolagsverket
-/// sends; which reports to fetch and store is decided in T1-06. T1-06 tests use a fake
-/// of this interface.
+/// sends; <see cref="FinancialsIngestService"/> decides which reports to fetch and
+/// store. Its tests use a fake of this interface.
 /// </summary>
 public interface IBolagsverketClient
 {

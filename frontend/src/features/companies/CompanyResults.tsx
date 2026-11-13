@@ -40,7 +40,7 @@ import type {
 import { Pagination } from './Pagination';
 import './companies.css';
 
-/** How often the list reloads while its search is still running (T1-14). */
+/** How often the list reloads while its search is still running. */
 const liveRefetchMs = 5000;
 
 type CompanyResultsProps = {
@@ -70,7 +70,7 @@ export function CompanyResults({
     });
     // Every row this search has shown, in memory only. The list is remounted for
     // a new search, so this is "this search" and a reload clears it. Rows the
-    // session has analysed are pinned from here on every page (T2-12).
+    // session has analysed are pinned from here on every page.
     const [seenRows, setSeenRows] = useState<ReadonlyMap<string, Company>>(
         () => new Map(),
     );

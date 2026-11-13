@@ -27,7 +27,7 @@ import { formatAmount, toAmount } from './format';
 /** Details through Samarbete. Score and action columns are added on top. */
 const fixedColumns = 9;
 
-/** Team 2 adds its action and score columns through this (T2-08, T2-09). */
+/** Find-website and analysis columns are added through this. */
 export type CompanyColumn = {
     key: string;
     header: ReactNode;
@@ -43,7 +43,7 @@ type CompanyTableProps = {
     scoreLookup?: (orgnr: string) => SessionScore | undefined;
     scoreSort?: ScoreSort | null;
     onScoreSort?: (column: ScoreColumn) => void;
-    /** Orgnrs pinned at the top because they were analysed this session (T2-12). */
+    /** Orgnrs pinned at the top because they were analysed this session. */
     analysed?: ReadonlySet<string>;
     onRowChange?: (company: Company) => void;
 };

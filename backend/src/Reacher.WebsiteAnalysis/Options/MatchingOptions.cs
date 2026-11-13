@@ -4,7 +4,8 @@ namespace Reacher.WebsiteAnalysis.Options;
 
 /// <summary>
 /// Website-matching settings, bound from the <c>Matching</c> section.
-/// Thresholds and the title bonus are an assumption until T2-07 measures them.
+/// The matching evaluation kept these thresholds and the title bonus. They remain an
+/// assumption; see Open questions in claude.md.
 /// </summary>
 public sealed class MatchingOptions : IValidatableObject
 {

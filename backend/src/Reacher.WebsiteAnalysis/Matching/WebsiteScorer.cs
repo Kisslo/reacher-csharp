@@ -11,7 +11,8 @@ public static class WebsiteScorer
     /// Returns a score from 0 to 1.
     /// </summary>
     /// <remarks>
-    /// Assumption until T2-07 measures it. Normalize by lowercasing, folding å/ä to a and
+    /// The matching evaluation kept this scoring. It remains an assumption; see Open
+    /// questions in claude.md. Normalize by lowercasing, folding å/ä to a and
     /// ö to o, and dropping the words ab, aktiebolag, and publ, plus punctuation and spaces.
     /// The domain counts only when it starts with the company's first remaining word, so a
     /// short accidental prefix such as "by" does not match "Bygg". The base score is the
