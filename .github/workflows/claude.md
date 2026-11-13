@@ -169,6 +169,7 @@ The team file wins for team-internal matters only. It never overrides the hard r
 | J-20 | [#92](https://github.com/Kisslo/reacher-csharp/issues/92) | [BE] List all SNI codes for a dropdown | 47 | – | Done (PR #97) |
 | J-21 | [#94](https://github.com/Kisslo/reacher-csharp/issues/94) | Remove ticket numbers from code comments | 47 | – | Todo |
 | J-22 | [#95](https://github.com/Kisslo/reacher-csharp/issues/95) | Add the new tickets to the claude files | 47 | – | Done (PR #96) |
+| J-26 | [#106](https://github.com/Kisslo/reacher-csharp/issues/106) | [BE] Make the Docker images match CI and stop running as root | 48 | – | In review |
 | J-27 | [#107](https://github.com/Kisslo/reacher-csharp/issues/107) | [FE] Remove the skeleton's health check from the page | 47 | – | Done |
 
 ## Plan
