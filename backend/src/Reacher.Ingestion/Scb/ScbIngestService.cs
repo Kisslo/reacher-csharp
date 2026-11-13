@@ -21,10 +21,11 @@ namespace Reacher.Ingestion.Scb;
 /// step: it is never mapped, fetched, logged or stored. Logs hold counts only.
 /// </para>
 /// <para>
-/// Two calls (D19). <see cref="RunAsync"/> commits companies in batches while it fetches them,
-/// so the company list fills up during a long search. <see cref="CompleteAsync"/> marks the
-/// data fresh and deletes what SCB no longer lists, and is only called once the whole job has
-/// succeeded. A failed or cancelled job keeps its batches and never runs that cleanup.
+/// Two calls (D19). <see cref="RunAsync"/> first deletes the stored workplaces SCB now marks
+/// as not eligible, then commits companies in batches while it fetches them, so the company
+/// list fills up during a long search. <see cref="CompleteAsync"/> marks the data fresh and
+/// deletes what SCB no longer lists, and is only called once the whole job has succeeded. A
+/// failed or cancelled job keeps its batches and never runs that cleanup.
 /// </para>
 /// </remarks>
 public sealed partial class ScbIngestService(
@@ -68,6 +69,7 @@ public sealed partial class ScbIngestService(
         var run = new ScbIngestRun(sni, municipalities, time.GetUtcNow());
 
         var byCompany = await ReadWorkplacesAsync(run, progress, cancellationToken);
+        await DeleteIneligibleWorkplacesAsync(run, cancellationToken);
         await FetchAndSaveCompaniesAsync(run, byCompany, progress, cancellationToken);
 
         run.Result.Duration = time.GetElapsedTime(started);
@@ -152,12 +154,23 @@ public sealed partial class ScbIngestService(
                 continue;
             }
 
+            // No key, or the workplace belongs to another SNI code. A row of another code may be
+            // stored by a search for that code, so it is skipped here but never deleted.
             if (Clean(row.CfarNr) is not { } cfar
-                || row.PrimarNaringsgren?.Naringsgren != sni
-                || !IsIn(row.AeStat, ActiveStatuses)
+                || row.PrimarNaringsgren?.Naringsgren != sni)
+            {
+                result.WorkplaceNotEligible++;
+                continue;
+            }
+
+            // D5 on the workplace. SCB still lists it, so only this rule can remove a row stored
+            // by an earlier run. It is remembered and deleted before any company is fetched, so
+            // a cancelled or failed job can't leave it visible (hard rule 2, D19).
+            if (!IsIn(row.AeStat, ActiveStatuses)
                 || !IsIn(row.ReklamSparrTyp, AcceptsAdvertising))
             {
                 result.WorkplaceNotEligible++;
+                run.IneligibleCfars.Add(cfar);
                 continue;
             }
 
@@ -192,6 +205,29 @@ public sealed partial class ScbIngestService(
         var pages = (result.WorkplacesRead + pageSize - 1) / pageSize;
         progress.Report(new IngestProgress(IngestPhases.Workplaces, pages, pages));
         return byCompany;
+    }
+
+    /// <summary>
+    /// Deletes the stored workplaces SCB now marks as not eligible (D5), before the slow company
+    /// calls start, so a cancelled or failed job can't leave them visible (D19). Only the
+    /// workplace goes. Its company and outreach (D18) stay: the search shows a company only
+    /// through a workplace in the requested municipalities (D15), and a company left without
+    /// any workplace is removed by <see cref="CompleteAsync"/> when a job succeeds.
+    /// </summary>
+    private async Task DeleteIneligibleWorkplacesAsync(
+        ScbIngestRun run,
+        CancellationToken cancellationToken)
+    {
+        if (run.IneligibleCfars.Count == 0)
+        {
+            return;
+        }
+
+        // One DELETE statement, which Postgres runs atomically, so no transaction is needed.
+        var cfars = run.IneligibleCfars.ToList();
+        run.Result.IneligibleWorkplacesDeleted = await db.Workplaces
+            .Where(w => cfars.Contains(w.Cfar))
+            .ExecuteDeleteAsync(cancellationToken);
     }
 
     /// <summary>

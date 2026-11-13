@@ -73,6 +73,7 @@ Real annual reports are messier than the fixture. These rules all come from bugs
 | T1-14 | [#79](https://github.com/Kisslo/reacher-csharp/issues/79) | [FE] Update the company table while a search is running | 47 | T1-12 | Done (PR #90) |
 | T1-15 | [#91](https://github.com/Kisslo/reacher-csharp/issues/91) | [FE] Clear the municipality search text after a pick and on Escape | 47 | – | Todo |
 | T1-16 | [#93](https://github.com/Kisslo/reacher-csharp/issues/93) | [FE] SNI dropdown in the search form | 47 | J-20 | Done (PR #99) |
+| T1-17 | [#101](https://github.com/Kisslo/reacher-csharp/issues/101) | [BE] Delete ineligible workplaces during the ingest, not only at the end | 47 | – | Done (PR #111) |
 
 Week 45 is the heaviest. If something slips, T1-08 can wait (only T1-09 in week 47 needs it).
 

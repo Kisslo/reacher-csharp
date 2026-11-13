@@ -34,6 +34,13 @@ public sealed record ScbIngestResult
 
     public int WorkplacesStored { get; internal set; }
 
+    /// <summary>
+    /// Stored workplaces that SCB now marks as not eligible (D5). Deleted during the run, as
+    /// soon as SCB's list has been read, so also when the job is later cancelled or fails (D19).
+    /// </summary>
+    public int IneligibleWorkplacesDeleted { get; internal set; }
+
+    /// <summary>Workplaces SCB no longer lists, deleted when the job succeeds.</summary>
     public int WorkplacesDeleted { get; internal set; }
 
     public int CompaniesDeleted { get; internal set; }

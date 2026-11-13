@@ -475,6 +475,83 @@ public sealed class ScbIngestServiceTests(IngestPostgresFixture postgres)
         }
     }
 
+    [Fact]
+    public async Task A_workplace_that_turned_ineligible_is_deleted_even_if_the_run_is_cancelled()
+    {
+        // A first search stored A in Stockholm and Solna, and B in Stockholm.
+        var scb = new FakeScbClient
+        {
+            Workplaces =
+            {
+                Workplace("90000001", CompanyA),
+                Workplace("90000002", CompanyA, municipality: Solna),
+                Workplace("90000003", CompanyB),
+            },
+            LegalUnits =
+            {
+                [CompanyA] = LegalUnit(CompanyA),
+                [CompanyB] = LegalUnit(CompanyB),
+            },
+        };
+        await Run(scb, [Stockholm, Solna]);
+
+        // A's Stockholm workplace has since opted out of advertising. SCB still lists it, so
+        // only the eligibility rule can remove it. The user cancels at the first company.
+        scb.Workplaces[0] = Workplace("90000001", CompanyA, reklamSparrTyp: "2");
+        scb.LegalUnitRequests.Clear();
+        using var cancel = new CancellationTokenSource();
+        scb.OnLegalUnit = _ => cancel.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => Run(scb, [Stockholm], cancellationToken: cancel.Token));
+
+        // A had no eligible workplace in Stockholm, so only B was fetched before the cancel.
+        Assert.Equal([CompanyB], scb.LegalUnitRequests);
+        await using var db = postgres.CreateContext();
+        Assert.False(await db.Workplaces.AnyAsync(w => w.Cfar == "90000001"));
+
+        // The same rule as CompanySearch.sql: a company is in the search only through a
+        // workplace with the SNI code in a requested municipality.
+        Assert.False(await db.Workplaces.AnyAsync(w =>
+            w.Orgnr == "5599001236" && w.Sni == Sni && w.Municipality == Stockholm));
+
+        // Solna wasn't part of this search, and the company itself is still eligible.
+        Assert.True(await db.Workplaces.AnyAsync(w => w.Cfar == "90000002"));
+        Assert.True(await db.Companies.AnyAsync(c => c.Orgnr == "5599001236"));
+    }
+
+    [Fact]
+    public async Task Outreach_stays_when_the_company_still_has_an_eligible_workplace()
+    {
+        var scb = new FakeScbClient
+        {
+            Workplaces =
+            {
+                Workplace("90000001", CompanyA),
+                Workplace("90000002", CompanyA),
+            },
+            LegalUnits = { [CompanyA] = LegalUnit(CompanyA) },
+        };
+        await Run(scb, [Stockholm]);
+        await AddOutreachAsync("5599001236");
+
+        // One of A's two workplaces is no longer active.
+        scb.Workplaces[1] = Workplace("90000002", CompanyA, aeStat: "9");
+        var result = await Run(scb, [Stockholm]);
+
+        await using var db = postgres.CreateContext();
+        Assert.Equal(["90000001"], await db.Workplaces.Select(w => w.Cfar).ToListAsync());
+        Assert.Equal(["5599001236"], await db.Companies.Select(c => c.Orgnr).ToListAsync());
+        Assert.Equal(
+            ["5599001236"],
+            await db.CompanyOutreach.Select(o => o.Orgnr).ToListAsync());
+
+        // Deleted during the run, so the end-of-run cleanup had nothing left to delete.
+        Assert.Equal(1, result.IneligibleWorkplacesDeleted);
+        Assert.Equal(0, result.WorkplacesDeleted);
+        Assert.Equal(0, result.CompaniesDeleted);
+    }
+
     /// <summary>
     /// The SCB part of a whole job: <see cref="ScbIngestService.RunAsync"/>, then
     /// <see cref="ScbIngestService.CompleteAsync"/> as the pipeline calls it on success. If
