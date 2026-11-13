@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.EntityFrameworkCore;
 using Reacher.Api.Companies;
+using Reacher.Data.Entities;
 
 namespace Reacher.Api.Tests;
 
@@ -11,6 +13,9 @@ public sealed class CompanySearchEndpointTests(CompanySearchFixture postgres)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly string[] MatchingMunicipalities = ["0180", "0184"];
+
+    // Not used by the shared seed, so these rows stay out of the other tests.
+    private const string EmployeeClassSortSni = "99999";
 
     [Fact]
     public async Task Search_returns_unique_companies_and_only_matching_workplaces()
@@ -229,6 +234,41 @@ public sealed class CompanySearchEndpointTests(CompanySearchFixture postgres)
             body.Items.Select(item => item.Orgnr));
     }
 
+    [Theory]
+    [InlineData("asc", "5599001100", "5599001118", "5599001126")]
+    [InlineData("desc", "5599001118", "5599001100", "5599001126")]
+    public async Task Search_sorts_employee_classes_by_size_with_class_zero_last(
+        string order,
+        string firstOrgnr,
+        string secondOrgnr,
+        string thirdOrgnr)
+    {
+        // Classes 2, 10 and 0. Text order would put "10" before "2", and "0"
+        // first. 0 means "uppgift saknas" and stays last in both directions.
+        await SeedEmployeeClassRowsAsync();
+        try
+        {
+            using var client = CreateClient();
+
+            var response = await client.GetAsync(
+                $"/api/companies?sni={EmployeeClassSortSni}&municipality=0180"
+                + $"&sort=employeeClass&order={order}");
+
+            response.EnsureSuccessStatusCode();
+            var body = await response.Content
+                .ReadFromJsonAsync<CompanySearchResponse>(JsonOptions);
+
+            Assert.NotNull(body);
+            Assert.Equal(
+                [firstOrgnr, secondOrgnr, thirdOrgnr],
+                body.Items.Select(item => item.Orgnr));
+        }
+        finally
+        {
+            await DeleteEmployeeClassRowsAsync();
+        }
+    }
+
     [Fact]
     public async Task Search_returns_coverage_for_each_requested_municipality()
     {
@@ -325,4 +365,63 @@ public sealed class CompanySearchEndpointTests(CompanySearchFixture postgres)
 
     private HttpClient CreateClient() =>
         ReacherApiFactory.Create(postgres.ConnectionString).CreateClient();
+
+    private async Task SeedEmployeeClassRowsAsync()
+    {
+        await using var db = postgres.CreateContext();
+        var updatedAt = DateTimeOffset.UtcNow;
+        db.Companies.AddRange(
+            EmployeeClassCompany("5599001100", "2", updatedAt),
+            EmployeeClassCompany("5599001118", "10", updatedAt),
+            EmployeeClassCompany("5599001126", "0", updatedAt));
+        db.Workplaces.AddRange(
+            EmployeeClassWorkplace("90000110", "5599001100", updatedAt),
+            EmployeeClassWorkplace("90000111", "5599001118", updatedAt),
+            EmployeeClassWorkplace("90000112", "5599001126", updatedAt));
+        await db.SaveChangesAsync();
+    }
+
+    private static Company EmployeeClassCompany(
+        string orgnr,
+        string employeeClass,
+        DateTimeOffset updatedAt) =>
+        new()
+        {
+            Orgnr = orgnr,
+            Name = "Class " + employeeClass,
+            Sni = EmployeeClassSortSni,
+            LegalForm = "49",
+            CompanyStatus = "1",
+            EmployeeClass = employeeClass,
+            RevenueClass = "1",
+            RevenueClassYear = 2025,
+            AdBlockType = "1",
+            UpdatedAt = updatedAt
+        };
+
+    private static Workplace EmployeeClassWorkplace(
+        string cfar,
+        string orgnr,
+        DateTimeOffset updatedAt) =>
+        new()
+        {
+            Cfar = cfar,
+            Orgnr = orgnr,
+            Sni = EmployeeClassSortSni,
+            Municipality = "0180",
+            Street = "Testgatan 1",
+            PostalCode = "111 20",
+            City = "Teststad",
+            WorkplaceStatus = "1",
+            AdBlockType = "1",
+            UpdatedAt = updatedAt
+        };
+
+    private async Task DeleteEmployeeClassRowsAsync()
+    {
+        await using var db = postgres.CreateContext();
+        await db.Companies
+            .Where(company => company.Sni == EmployeeClassSortSni)
+            .ExecuteDeleteAsync();
+    }
 }

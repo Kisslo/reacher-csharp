@@ -76,12 +76,15 @@ ordered AS (
                 WHEN @sort = 'revenue' AND @order = 'asc' THEN latest_revenue IS NULL
                 WHEN @sort = 'netResult' AND @order = 'asc' THEN latest_net_result IS NULL
                 WHEN @sort = 'registeredAt' AND @order = 'asc' THEN registered_at IS NULL
-                WHEN @sort = 'employeeClass' AND @order = 'asc' THEN employee_class IS NULL
+                -- Class 0 is "uppgift saknas", so it sorts as a missing value.
+                WHEN @sort = 'employeeClass' AND @order = 'asc'
+                    THEN employee_class IS NULL OR employee_class = '0'
                 WHEN @sort = 'name' AND @order = 'desc' THEN name IS NULL
                 WHEN @sort = 'revenue' AND @order = 'desc' THEN latest_revenue IS NULL
                 WHEN @sort = 'netResult' AND @order = 'desc' THEN latest_net_result IS NULL
                 WHEN @sort = 'registeredAt' AND @order = 'desc' THEN registered_at IS NULL
-                WHEN @sort = 'employeeClass' AND @order = 'desc' THEN employee_class IS NULL
+                WHEN @sort = 'employeeClass' AND @order = 'desc'
+                    THEN employee_class IS NULL OR employee_class = '0'
             END
         ) AS missing_sort_value
     FROM filtered
@@ -100,8 +103,21 @@ paged AS (
                 CASE WHEN @sort = 'netResult' AND @order = 'desc' THEN latest_net_result END DESC,
                 CASE WHEN @sort = 'registeredAt' AND @order = 'asc' THEN registered_at END ASC,
                 CASE WHEN @sort = 'registeredAt' AND @order = 'desc' THEN registered_at END DESC,
-                CASE WHEN @sort = 'employeeClass' AND @order = 'asc' THEN employee_class END ASC,
-                CASE WHEN @sort = 'employeeClass' AND @order = 'desc' THEN employee_class END DESC,
+                -- Text order puts "10" before "2". Length first matches ScbCodeTables.ByCode.
+                CASE
+                    WHEN @sort = 'employeeClass' AND @order = 'asc'
+                        THEN length(employee_class)
+                END ASC,
+                CASE
+                    WHEN @sort = 'employeeClass' AND @order = 'asc' THEN employee_class
+                END ASC,
+                CASE
+                    WHEN @sort = 'employeeClass' AND @order = 'desc'
+                        THEN length(employee_class)
+                END DESC,
+                CASE
+                    WHEN @sort = 'employeeClass' AND @order = 'desc' THEN employee_class
+                END DESC,
                 orgnr
         ) AS result_order
     FROM ordered
@@ -115,8 +131,18 @@ paged AS (
         CASE WHEN @sort = 'netResult' AND @order = 'desc' THEN latest_net_result END DESC,
         CASE WHEN @sort = 'registeredAt' AND @order = 'asc' THEN registered_at END ASC,
         CASE WHEN @sort = 'registeredAt' AND @order = 'desc' THEN registered_at END DESC,
-        CASE WHEN @sort = 'employeeClass' AND @order = 'asc' THEN employee_class END ASC,
-        CASE WHEN @sort = 'employeeClass' AND @order = 'desc' THEN employee_class END DESC,
+        CASE
+            WHEN @sort = 'employeeClass' AND @order = 'asc' THEN length(employee_class)
+        END ASC,
+        CASE
+            WHEN @sort = 'employeeClass' AND @order = 'asc' THEN employee_class
+        END ASC,
+        CASE
+            WHEN @sort = 'employeeClass' AND @order = 'desc' THEN length(employee_class)
+        END DESC,
+        CASE
+            WHEN @sort = 'employeeClass' AND @order = 'desc' THEN employee_class
+        END DESC,
         orgnr
     LIMIT @page_size
     OFFSET @page_offset
