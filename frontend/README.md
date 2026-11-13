@@ -7,7 +7,7 @@ development and proxies API requests to the ASP.NET backend.
 
 - Node.js 24 or newer
 - npm
-- The backend running locally when using the health check or generating API types
+- The backend running locally when generating API types
 
 ## Install and run
 

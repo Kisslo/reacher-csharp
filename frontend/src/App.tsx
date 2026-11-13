@@ -1,6 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
-
-import { fetchHealth } from './api/health';
 import { CompanyResults } from './features/companies/CompanyResults';
 import {
     AnalysisProvider,
@@ -30,10 +27,6 @@ function App() {
 
 function AppContent() {
     const { getScore, markNoWebsite, startAnalysis } = useAnalysis();
-    const healthQuery = useQuery({
-        queryKey: ['health'],
-        queryFn: fetchHealth,
-    });
 
     return (
         <main className="app-main">
@@ -71,25 +64,6 @@ function AppContent() {
                     </WebsiteSearchProvider>
                 )}
             />
-            <section aria-labelledby="health-heading">
-                <h2 id="health-heading">{commonText.healthCheck}</h2>
-                {healthQuery.isPending && <p>{commonText.healthLoading}</p>}
-                {healthQuery.isSuccess && <p>{commonText.healthSuccess}</p>}
-                {healthQuery.isError && (
-                    <div role="alert">
-                        <p>
-                            {healthQuery.error.message ||
-                                commonText.healthFailure}
-                        </p>
-                        <button
-                            type="button"
-                            onClick={() => void healthQuery.refetch()}
-                        >
-                            {commonText.retry}
-                        </button>
-                    </div>
-                )}
-            </section>
         </main>
     );
 }
