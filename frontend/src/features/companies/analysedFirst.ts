@@ -55,7 +55,9 @@ export function arrangeAnalysedFirst({
  * The same order as the server's ORDER BY in CompanySearch.sql: a missing value
  * last in both directions, then the value, then orgnr. Names use Swedish rules
  * in the browser, which can differ slightly from Postgres' collation. That only
- * matters inside the analysed group.
+ * matters inside the analysed group. Employee class follows
+ * ScbCodeTables.ByCode (shorter code first, then the code). Class 0
+ * ("uppgift saknas") is a missing value.
  */
 export function compareCompanies(
     left: Company,
@@ -73,7 +75,7 @@ export function compareCompanies(
         return compareOrgnr(left, right);
     }
 
-    const result = compareValues(leftValue, rightValue);
+    const result = compareValues(leftValue, rightValue, sort);
     if (result !== 0) {
         return order === 'asc' ? result : -result;
     }
@@ -102,14 +104,32 @@ function sortValue(
         case 'registeredAt':
             return company.registeredAt;
         case 'employeeClass':
-            return company.employeeClass;
+            // Class 0 is "uppgift saknas": missing, so last either way.
+            return company.employeeClass === '0' ? null : company.employeeClass;
     }
 }
 
-function compareValues(left: string | number, right: string | number): number {
+function compareValues(
+    left: string | number,
+    right: string | number,
+    sort: CompanySort,
+): number {
     if (typeof left === 'number' && typeof right === 'number') {
         return left - right;
     }
 
-    return String(left).localeCompare(String(right), 'sv');
+    const leftText = String(left);
+    const rightText = String(right);
+    if (sort === 'employeeClass') {
+        // "10" is longer than "2", so it is the larger class. Same rule as
+        // length(employee_class), employee_class in CompanySearch.sql.
+        const byLength = leftText.length - rightText.length;
+        if (byLength !== 0) {
+            return byLength;
+        }
+
+        return leftText < rightText ? -1 : leftText > rightText ? 1 : 0;
+    }
+
+    return leftText.localeCompare(rightText, 'sv');
 }
