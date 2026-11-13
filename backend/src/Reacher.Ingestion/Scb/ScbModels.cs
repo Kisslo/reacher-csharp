@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace Reacher.Ingestion.Scb;
 
 // The shapes of SCB's JSON, with SCB's own field names (docs/scb-fields.md), so the
-// mapping in T1-05 can be checked field by field. Only fields we use are mapped.
+// mapping in ScbIngestService can be checked field by field. Only fields we use are mapped.
 // postAdress, kommunSate, tel, epost and coordinates are left out on purpose (D3,
 // data minimisation); the serializer ignores fields that have no property.
 // Values are raw: "" and " " stay as they are. The ingest trims and normalises.

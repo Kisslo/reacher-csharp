@@ -1,7 +1,7 @@
 namespace Reacher.Ingestion.Jobs;
 
 /// <summary>
-/// Decides whether a search needs an ingest (D6). T2-02's <c>POST /api/searches</c> calls it.
+/// Decides whether a search needs an ingest (D6). <c>POST /api/searches</c> calls it.
 /// </summary>
 public interface IIngestCoordinator
 {
@@ -17,7 +17,7 @@ public interface IIngestCoordinator
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Cancels a queued or running job (J-17). A queued job is never started. A running job
+    /// Cancels a queued or running job. A queued job is never started. A running job
     /// stops at its next SCB or Bolagsverket call, and rows it already committed stay.
     /// </summary>
     Task<CancelJobResult> CancelAsync(Guid jobId, CancellationToken cancellationToken);

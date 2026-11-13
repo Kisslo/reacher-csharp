@@ -41,8 +41,8 @@ type Stage =
 
 type SearchPageProps = {
     /**
-     * T1-10 passes the company table here. `live` is true while the ingest job
-     * is queued or running, so the table keeps reloading (T1-14).
+     * Renders the company table. `live` is true while the ingest job is queued
+     * or running, so the table keeps reloading.
      */
     renderResults: (search: SearchSelection, live: boolean) => ReactNode;
 };

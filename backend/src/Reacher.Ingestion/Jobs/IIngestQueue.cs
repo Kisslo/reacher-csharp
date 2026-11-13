@@ -10,7 +10,7 @@ namespace Reacher.Ingestion.Jobs;
 [SuppressMessage(
     "Naming",
     "CA1711:Identifiers should not have incorrect suffix",
-    Justification = "The name is fixed in claude.md and T1-07, and it is a queue.")]
+    Justification = "The name is fixed in claude.md, and it is a queue.")]
 public interface IIngestQueue
 {
     ValueTask EnqueueAsync(Guid jobId, CancellationToken cancellationToken);

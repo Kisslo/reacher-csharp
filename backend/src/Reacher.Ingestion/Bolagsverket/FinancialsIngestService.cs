@@ -9,8 +9,8 @@ namespace Reacher.Ingestion.Bolagsverket;
 
 /// <summary>
 /// Fills <c>financial_fact</c> with the figures in <c>Bolagsverket:TagMap</c> (D14) for
-/// companies T1-05 has stored: the <see cref="BolagsverketOptions.Years"/> latest fiscal
-/// years per company.
+/// companies <see cref="Reacher.Ingestion.Scb.ScbIngestService"/> has stored: the
+/// <see cref="BolagsverketOptions.Years"/> latest fiscal years per company.
 /// </summary>
 /// <remarks>
 /// <list type="bullet">

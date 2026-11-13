@@ -102,7 +102,7 @@ public sealed partial class IxbrlParser
     /// <summary>
     /// Every value for the tags in <paramref name="tagMap"/>, sorted by period end and key.
     /// A report usually holds the current and the comparison year, and both are returned.
-    /// Which ones are stored is up to the financials ingest (T1-06).
+    /// Which ones are stored is up to <see cref="FinancialsIngestService"/>.
     /// </summary>
     /// <param name="xhtml">The report. Read but not closed.</param>
     /// <param name="tagMap">iXBRL tag, e.g. <c>se-gen-base:Nettoomsattning</c> -> fact name.</param>

@@ -7,7 +7,7 @@ using Reacher.Ingestion.Options;
 namespace Reacher.Ingestion.Jobs;
 
 /// <summary>
-/// Turns a search into "fresh", an existing job or a new one (D6), and cancels jobs (J-17).
+/// Turns a search into "fresh", an existing job or a new one (D6), and cancels jobs.
 /// Scoped, like the <see cref="ReacherDbContext"/> it uses.
 /// </summary>
 public sealed class IngestCoordinator(

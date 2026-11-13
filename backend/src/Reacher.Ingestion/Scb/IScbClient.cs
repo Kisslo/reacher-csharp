@@ -1,8 +1,8 @@
 namespace Reacher.Ingestion.Scb;
 
 /// <summary>
-/// SCB's AFR API. Returns what SCB sends; filtering and storage are in T1-05.
-/// T1-05 tests use a fake of this interface.
+/// SCB's AFR API. Returns what SCB sends; filtering and storage are in
+/// <see cref="ScbIngestService"/>. Its tests use a fake of this interface.
 /// </summary>
 public interface IScbClient
 {

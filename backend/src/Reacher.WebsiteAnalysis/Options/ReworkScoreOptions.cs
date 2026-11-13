@@ -2,7 +2,8 @@ namespace Reacher.WebsiteAnalysis.Options;
 
 /// <summary>
 /// Rework-score weights, bound from the <c>ReworkScore</c> section.
-/// Starting assumption for T2-05; change the numbers in appsettings.json.
+/// The starting weights are still an assumption; see Open questions in claude.md.
+/// Change the numbers in appsettings.json.
 /// </summary>
 public sealed class ReworkScoreOptions
 {

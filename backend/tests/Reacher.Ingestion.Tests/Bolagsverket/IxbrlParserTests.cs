@@ -9,7 +9,7 @@ namespace Reacher.Ingestion.Tests.Bolagsverket;
 // here, so the fixture can look like a real report without warnings.
 public sealed class IxbrlParserTests : IDisposable
 {
-    private const string DocumentId = "FIKTIV-T1-03";
+    private const string DocumentId = "FIKTIV-DOKUMENT";
 
     // Made up, but stands in the fixture's xbrli:identifier. Must never be logged.
     private const string SampleOrgnr = "559999-0016";
@@ -52,7 +52,7 @@ public sealed class IxbrlParserTests : IDisposable
     [Fact]
     public void Split_overview_heading_gives_values_from_the_income_statement_only()
     {
-        // T1-11, the heading structure found in real reports: "Flerårsöversikt" with "(Tkr)"
+        // The heading structure found in real reports: "Flerårsöversikt" with "(Tkr)"
         // in child spans, so the heading is not a text-only element. The overview is in tkr
         // and has two older years, so reading it would drop both revenue values as
         // conflicts and add two years rounded to whole thousands.

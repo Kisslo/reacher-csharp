@@ -7,7 +7,8 @@ namespace Reacher.Ingestion.Bolagsverket;
 /// <param name="PeriodEnd">The last day of the fiscal year (<c>rapporteringsperiodTom</c>).</param>
 /// <param name="RegisteredAt">
 /// <c>registreringstidpunkt</c> as Bolagsverket sends it (ISO text, so it sorts). If a year
-/// was filed twice (a correction), T1-06 uses this to pick the latest one.
+/// was filed twice (a correction), <see cref="FinancialsIngestService"/> uses this to
+/// pick the latest one.
 /// </param>
 public sealed record AnnualReportDocument(
     string DocumentId,

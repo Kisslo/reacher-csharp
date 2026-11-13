@@ -1,8 +1,8 @@
 namespace Reacher.Ingestion;
 
 /// <summary>
-/// How far an ingest has come. T1-07 copies it to <c>ingest_job.phase</c>, <c>done</c> and
-/// <c>total</c>. <see cref="Total"/> is null while it isn't known yet.
+/// How far an ingest has come. The ingest worker copies it to <c>ingest_job.phase</c>,
+/// <c>done</c> and <c>total</c>. <see cref="Total"/> is null while it isn't known yet.
 /// </summary>
 public sealed record IngestProgress(string Phase, int Done, int? Total);
 

@@ -72,7 +72,7 @@ public sealed class IngestPipelineTests(IngestPostgresFixture postgres)
             Workplaces = { Workplace("90000001", CompanyA) },
             LegalUnits = { [CompanyA] = LegalUnit(CompanyA) },
         };
-        // Wrong credentials stop the financials phase (T1-06).
+        // Wrong credentials stop the financials phase.
         var bolagsverket = new FakeBolagsverketClient
         {
             Failure = new BolagsverketAuthException("POST /oauth2/token: HTTP 401."),

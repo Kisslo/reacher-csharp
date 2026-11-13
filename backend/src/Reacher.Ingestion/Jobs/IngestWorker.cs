@@ -13,7 +13,7 @@ namespace Reacher.Ingestion.Jobs;
 /// Runs ingest jobs from <see cref="IIngestQueue"/>, one at a time, so SCB and Bolagsverket
 /// only ever see one ingest. Keeps <c>ingest_job</c> up to date:
 /// <c>queued</c> → <c>running</c> (progress about once a second) → <c>succeeded</c> or
-/// <c>failed</c>. A user can move a queued or running job to <c>cancelled</c> (J-17).
+/// <c>failed</c>. A user can move a queued or running job to <c>cancelled</c>.
 /// </summary>
 /// <remarks>
 /// A singleton (hosted service), so each job gets its own DI scope and with it its own

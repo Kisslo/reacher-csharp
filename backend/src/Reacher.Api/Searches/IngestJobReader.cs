@@ -4,7 +4,8 @@ using Reacher.Data;
 namespace Reacher.Api.Searches;
 
 /// <summary>
-/// The real job status, read from <c>ingest_job</c>. The worker (T1-07) is what updates the row.
+/// The real job status, read from <c>ingest_job</c>.
+/// <see cref="Reacher.Ingestion.Jobs.IngestWorker"/> is what updates the row.
 /// </summary>
 public sealed class IngestJobReader(ReacherDbContext db) : IIngestJobReader
 {

@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 namespace Reacher.WebsiteAnalysis.Matching;
 
 /// <summary>
-/// Builds the Brave query for one company. T2-06 passes the result to
+/// Builds the Brave query for one company. The website endpoints pass the result to
 /// <c>IBraveSearchClient.SearchAsync</c>; this method does not call Brave.
 /// </summary>
 public static partial class WebsiteQuery
