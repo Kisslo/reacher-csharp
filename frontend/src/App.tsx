@@ -9,7 +9,6 @@ import {
     FindWebsiteAction,
     WebsiteSearchProvider,
 } from './features/website/FindWebsiteAction';
-import { commonText } from './texts/common';
 import { websiteText } from './texts/website';
 
 function App() {
@@ -30,7 +29,6 @@ function AppContent() {
 
     return (
         <main className="app-main">
-            <p>{commonText.welcome}</p>
             <SearchPage
                 renderResults={(search, live) => (
                     // A new search remounts the list, so it reads its view from the URL again.

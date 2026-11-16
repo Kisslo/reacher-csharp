@@ -7,10 +7,10 @@
 .company-filters {
     display: grid;
     gap: 1rem;
-    padding: 1rem;
-    background: #ffffff;
-    border: 1px solid #d5dbe6;
-    border-radius: 0.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--color-canvas);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
 }
 
 .filter-classes {
@@ -27,8 +27,8 @@
     margin: 0;
     padding: 0.5rem 0.75rem;
     overflow-y: auto;
-    border: 1px solid #d5dbe6;
-    border-radius: 0.375rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
 }
 
 .class-filter legend {
@@ -56,20 +56,22 @@
 
 .companies-error p {
     margin: 0 0 0.5rem;
-    color: #b42318;
+    color: var(--color-danger);
 }
 
 .company-table {
     width: 100%;
-    font-size: 0.875rem;
-    background: #ffffff;
-    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+    background: var(--color-canvas);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
 .company-table caption {
     margin-bottom: 0.5rem;
-    font-size: 0.875rem;
-    color: #4a5568;
+    color: var(--color-fg-muted);
     text-align: left;
 }
 
@@ -79,11 +81,37 @@
 
 .company-table th,
 .company-table td {
-    padding: 0.35rem 0.3rem;
-    overflow-wrap: anywhere;
+    padding: 0.5rem 0.625rem;
+    overflow-wrap: break-word;
     text-align: left;
     vertical-align: top;
-    border-bottom: 1px solid #d5dbe6;
+    border-bottom: 1px solid var(--color-border);
+}
+
+/* The header stays visible while scrolling through a long list. */
+.company-table > thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    font-weight: 600;
+    color: var(--color-fg-muted);
+    background: var(--color-canvas-subtle);
+}
+
+.company-table > thead th:first-child {
+    border-top-left-radius: var(--radius);
+}
+
+.company-table > thead th:last-child {
+    border-top-right-radius: var(--radius);
+}
+
+.company-table > tbody > tr:last-child > td {
+    border-bottom: none;
+}
+
+.company-table > tbody > tr:not(.details-row, .outreach-error):hover > td {
+    background: var(--color-canvas-subtle);
 }
 
 .company-table .numeric {
@@ -104,9 +132,16 @@
     color: inherit;
     text-align: inherit;
     white-space: normal;
+    min-height: 0;
     background: none;
     border: none;
+    border-radius: 0;
+    box-shadow: none;
     cursor: pointer;
+}
+
+.companies .sort-button:hover:not(:disabled) {
+    background: none;
 }
 
 .companies .sort-button:hover,
@@ -116,6 +151,7 @@
 
 .companies .row-toggle {
     width: 1.75rem;
+    min-height: 0;
     height: 1.75rem;
     padding: 0;
     line-height: 1;
@@ -129,16 +165,16 @@
 }
 
 .amount-negative {
-    color: #b42318;
+    color: var(--color-danger);
 }
 
 .details-row td {
-    background: #f5f7fb;
+    background: var(--color-canvas-subtle);
 }
 
 /* Analysed this session and pinned above the rest. */
 .analysed-row td {
-    background: #eef6ee;
+    background: var(--color-success-subtle);
 }
 
 .details-row p {
@@ -164,7 +200,7 @@
 
 .score-sort-note {
     margin: 0;
-    color: #4a5568;
+    color: var(--color-fg-muted);
     font-size: 0.875rem;
 }
 
@@ -178,17 +214,8 @@
 }
 
 .filter-select select,
-.outreach-willing,
-.outreach-note textarea {
-    font: inherit;
-    border: 1px solid #8a94a6;
-    border-radius: 0.375rem;
-    background: #ffffff;
-}
-
-.filter-select select,
 .outreach-willing {
-    padding: 0.35rem 0.4rem;
+    padding: 0.3rem 0.5rem;
 }
 
 .company-table .outreach {
@@ -224,7 +251,6 @@
 .outreach-note textarea {
     width: 100%;
     min-height: 2.75rem;
-    padding: 0.5rem 0.75rem;
     resize: vertical;
 }
 
@@ -234,5 +260,5 @@
 
 .outreach-error p {
     margin: 0;
-    color: #b42318;
+    color: var(--color-danger);
 }
