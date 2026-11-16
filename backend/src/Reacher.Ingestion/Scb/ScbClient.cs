@@ -32,7 +32,7 @@ public sealed class ScbClient(
         int? cursor = null;
         while (true)
         {
-            // The same limit on every page (docs/scb-fields.md, "Paginering").
+            // The same limit on every page (docs/scb-fields.md, "Paging").
             var path = string.Create(
                 CultureInfo.InvariantCulture,
                 $"arbetsstallen/naringsgren/{Uri.EscapeDataString(sni)}?limit={_pageSize}");

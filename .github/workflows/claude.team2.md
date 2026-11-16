@@ -6,16 +6,15 @@ Loaded together with the shared `claude.md`. That file holds the hard rules, dec
 Serve the company list the way the user wants to see it, and for one company at a time find its website and judge whether it needs rework, without keeping anything Brave gives us; in week 47 build the website panel and analysis view.
 
 ## What we own
-Folder paths are a suggestion until J-02 lands. Update the table if they change.
 
 | Area | Where | Ticket |
 |---|---|---|
-| Company search `GET /api/companies` | `backend/src/Reacher.Api/Endpoints/` + query in `Reacher.Data` | T2-01 |
-| Search and job endpoints | `backend/src/Reacher.Api/Endpoints/` | T2-02 |
+| Company search `GET /api/companies` | `backend/src/Reacher.Api/Companies/` (`CompanyQueryService` + embedded `CompanySearch.sql`) | T2-01 |
+| Search and job endpoints | `backend/src/Reacher.Api/Searches/` | T2-02 |
 | Brave client, fake client, usage counter | `backend/src/Reacher.WebsiteAnalysis/Brave/` | T2-03 |
 | Website matching | `backend/src/Reacher.WebsiteAnalysis/Matching/` | T2-04 |
 | URL validation, PageSpeed, own checks, rework score | `backend/src/Reacher.WebsiteAnalysis/Analysis/` | T2-05 |
-| Website endpoints | `backend/src/Reacher.Api/Endpoints/` | T2-06 |
+| Website endpoints | `backend/src/Reacher.Api/Websites/` | T2-06 |
 | Matching evaluation | `docs/matching-evaluation.md` | T2-07 |
 | "Find website" panel | `frontend/src/features/website/` | T2-08 |
 | Analysis view, session score store, score column | `frontend/src/features/analysis/` | T2-09 |
@@ -47,7 +46,7 @@ Folder paths are a suggestion until J-02 lands. Update the table if they change.
 - PageSpeed fetches the page from Google's servers, but validate before sending anyway. There is no point analysing `localhost`.
 
 ### Company search (T2-01)
-- One EF query that translates to one SQL statement, with filtering, sorting and paging in the database. Check the generated SQL with EF logging.
+- One SQL statement in `backend/src/Reacher.Api/Companies/CompanySearch.sql`, embedded in the assembly and run by `CompanyQueryService` with Npgsql parameters, never string concatenation. Filtering, sorting, paging and `totalCount` (`COUNT(*) OVER ()`) all happen in the database, and the statement returns the whole response as one JSON value. A new filter means changing the SQL, the parameters in `CompanyQueryService`, `CompanySearchQueryValidator` and `docs/contracts.md`.
 - "Latest fiscal year" = the newest `period_end` per company. Companies missing the sorted value always go last.
 - The filters are exactly those in `docs/contracts.md`. A new filter is a contract change (joint).
 
@@ -76,13 +75,16 @@ Folder paths are a suggestion until J-02 lands. Update the table if they change.
 | T2-10 | [#59](https://github.com/Kisslo/reacher-csharp/issues/59) | [FE] Fix behov sorting | 47 | T2-09 | Done (PR #60) |
 | T2-11 | [#61](https://github.com/Kisslo/reacher-csharp/issues/61) | [FE] Sortable Lighthouse category columns in the company table | 47 | T2-09, T2-10 | Done (PR #67) |
 | T2-12 | [#80](https://github.com/Kisslo/reacher-csharp/issues/80) | [FE] Mark analysed companies and keep them at the top | 47 | – | Done (PR #88) |
-| T2-13 | [#100](https://github.com/Kisslo/reacher-csharp/issues/100) | [BE] Block the remaining unsafe address ranges in the URL check | 47 | – | In review |
+| T2-13 | [#100](https://github.com/Kisslo/reacher-csharp/issues/100) | [BE] Block the remaining unsafe address ranges in the URL check | 47 | – | Done (PR #110) |
+| T2-14 | [#104](https://github.com/Kisslo/reacher-csharp/issues/104) | [BE] Only offer http/https website candidates and fix the fake's no-website case | 47 | – | Done (PR #109) |
 
 T2-05 doesn't depend on Brave, so it can start as soon as J-03 is merged, in parallel with T2-03.
 
 T2-12 settles the score-sorting open question: analysed companies from this session stay above the others on every page, and the active sort applies inside each group.
 
 ## Team status
+*2026-11-16:* All Team 2 tickets T2-01–T2-14 are complete. T2-13 (PR #110) blocks the remaining unsafe address ranges, and T2-14 (PR #109) offers only http/https candidates. Follow-up idea still open: an IPv6 allow-list (`2000::/3`) instead of a deny-list.
+
 *2026-11-12:* T2-13 is in review. The URL check now also blocks `::` and the rest of `0000::/8`, multicast, reserved, benchmarking and 6to4 ranges, and the page fetcher no longer goes through a proxy. Follow-up idea from the review: an IPv6 allow-list (`2000::/3`) instead of a deny-list.
 
 *2026-11-09:* All Team 2 tickets T2-01–T2-11 are complete. J-16 adds Kontaktad, Samarbete, the note on the expanded row, and the called and willingness filters. A failed save keeps the previous note and both markers.

@@ -14,13 +14,15 @@ The total was 80 Brave requests, below the ticket limit of 150.
 
 For each run, the evaluator recorded only:
 
-- `orgnr`
+- the company's SNI code
 - whether the company had an official website
 - the candidate position of the official website (`1`, `2`, `3`, or `none`)
 - the confidence assigned to that candidate
 - whether that candidate was preselected
 
-The detailed orgnr-only log is [evaluation-log.csv](./evaluation-log.csv).
+The detailed log is [evaluation-log.csv](./evaluation-log.csv), one numbered row per
+company. The orgnr were used during the run but are not in the repo, because real company
+data stays local.
 No URLs, titles, snippets, screenshots, or raw Brave responses were stored.
 
 The measured change was to append `website` to the Brave query after the

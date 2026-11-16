@@ -96,7 +96,7 @@ Ask before adding a NuGet or npm package, a service or a language. Prefer what .
   src/Reacher.WebsiteAnalysis  Brave, matching, PageSpeed, own checks, URL validation
   tests/<Project>.Tests
 /frontend                      React app; user-facing strings in src/texts/
-/docs                          decisions.md, contracts.md, scb-fields.md (+ demo.md, matching-evaluation.md later)
+/docs                          decisions.md, contracts.md, scb-fields.md, demo.md, matching-evaluation.md, evaluation-log.csv
 docker-compose.yml
 ```
 
@@ -151,7 +151,7 @@ The team file wins for team-internal matters only. It never overrides the hard r
 | J-02 | [#2](https://github.com/Kisslo/reacher-csharp/issues/2) | [BE] Repo skeleton: solution, projects, Docker Compose, CI | 44 | – | Done (PR #28) |
 | J-03 | [#3](https://github.com/Kisslo/reacher-csharp/issues/3) | [BE] Configuration and secrets | 44 | J-02 | Done (PR #29) |
 | J-04 | [#4](https://github.com/Kisslo/reacher-csharp/issues/4) | Rewrite the claude.md files | 44 | J-01 | Done (PR #27) |
-| J-05 | [#20](https://github.com/Kisslo/reacher-csharp/issues/20) | [FE] Frontend skeleton | 46 | J-01, J-02 | Todo |
+| J-05 | [#20](https://github.com/Kisslo/reacher-csharp/issues/20) | [FE] Frontend skeleton | 46 | J-01, J-02 | Done (PR #46) |
 | J-06 | [#25](https://github.com/Kisslo/reacher-csharp/issues/25) | End-to-end test, demo and README | 48 | all | Todo |
 | J-07 | [#34](https://github.com/Kisslo/reacher-csharp/issues/34) | [BE] Fix flaky startup-validation test | 44 | – | Done (PR #35) |
 | J-08 | [#36](https://github.com/Kisslo/reacher-csharp/issues/36) | [BE] Pin the .NET SDK band and regenerate lock files on conflict | 44 | – | Done (PR #37) |
@@ -167,11 +167,14 @@ The team file wins for team-internal matters only. It never overrides the hard r
 | J-18 | [#81](https://github.com/Kisslo/reacher-csharp/issues/81) | Add the new search tickets to the claude files | 47 | – | Done (PR #82) |
 | J-19 | [#85](https://github.com/Kisslo/reacher-csharp/issues/85) | [BE] Fix the format check after J-17 | 47 | – | Done (PR #87) |
 | J-20 | [#92](https://github.com/Kisslo/reacher-csharp/issues/92) | [BE] List all SNI codes for a dropdown | 47 | – | Done (PR #97) |
-| J-21 | [#94](https://github.com/Kisslo/reacher-csharp/issues/94) | Remove ticket numbers from code comments | 47 | – | Todo |
+| J-21 | [#94](https://github.com/Kisslo/reacher-csharp/issues/94) | Remove ticket numbers from code comments | 47 | – | Done (PR #117) |
 | J-22 | [#95](https://github.com/Kisslo/reacher-csharp/issues/95) | Add the new tickets to the claude files | 47 | – | Done (PR #96) |
+| J-23 | [#102](https://github.com/Kisslo/reacher-csharp/issues/102) | Sort employee classes by number | 47 | – | Done (PR #114) |
+| J-24 | [#103](https://github.com/Kisslo/reacher-csharp/issues/103) | [BE] Return problem+json with a code for every error | 47 | – | Done (PR #113) |
 | J-25 | [#105](https://github.com/Kisslo/reacher-csharp/issues/105) | Tighten the outreach note check | 47 | – | Done (PR #116) |
-| J-26 | [#106](https://github.com/Kisslo/reacher-csharp/issues/106) | [BE] Make the Docker images match CI and stop running as root | 48 | – | In review |
-| J-27 | [#107](https://github.com/Kisslo/reacher-csharp/issues/107) | [FE] Remove the skeleton's health check from the page | 47 | – | Done |
+| J-26 | [#106](https://github.com/Kisslo/reacher-csharp/issues/106) | [BE] Make the Docker images match CI and stop running as root | 48 | – | Done (PR #115) |
+| J-27 | [#107](https://github.com/Kisslo/reacher-csharp/issues/107) | [FE] Remove the skeleton's health check from the page | 47 | – | Done (PR #112) |
+| J-28 | [#108](https://github.com/Kisslo/reacher-csharp/issues/108) | Make the docs and claude files match the code | 47 | – | Done (PR #118) |
 
 ## Plan
 | Week | Dates | Goal | Works at the end of the week |
@@ -186,6 +189,8 @@ The team file wins for team-internal matters only. It never overrides the hard r
 You don't remember earlier conversations. At the end of a session, when asked, write a short status update (done / in progress / next / blocked) for the team you are working with. It goes under "Team status" in that team's file. Cross-team items (decisions, contract changes, open questions) go in this file. Keep the latest 3 sessions per status section; older history is in git.
 
 ## Current status (shared)
+*2026-11-16:* J-21 and J-23–J-27 are merged: every error now has a problem `code` (J-24, listed in `docs/contracts.md`), the note check is stricter (J-25), and the Docker images match CI and don't run as root (J-26). J-28 brings the docs and claude files in line with the code. Still open: J-14 (delete the Render deployment, rotate keys) and J-06 (end-to-end test, demo and README).
+
 *2026-11-09:* J-15 is merged (PR #74): call status, willingness, and one note are stored per company and survive re-ingest. J-16 adds Kontaktad, Samarbete, the note, and the called and willingness filters on the company row. J-14 remains open.
 
 ## Open questions
