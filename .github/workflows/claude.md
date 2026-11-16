@@ -174,7 +174,7 @@ The team file wins for team-internal matters only. It never overrides the hard r
 | J-25 | [#105](https://github.com/Kisslo/reacher-csharp/issues/105) | Tighten the outreach note check | 47 | – | Done (PR #116) |
 | J-26 | [#106](https://github.com/Kisslo/reacher-csharp/issues/106) | [BE] Make the Docker images match CI and stop running as root | 48 | – | Done (PR #115) |
 | J-27 | [#107](https://github.com/Kisslo/reacher-csharp/issues/107) | [FE] Remove the skeleton's health check from the page | 47 | – | Done (PR #112) |
-| J-28 | [#108](https://github.com/Kisslo/reacher-csharp/issues/108) | Make the docs and claude files match the code | 47 | – | In review |
+| J-28 | [#108](https://github.com/Kisslo/reacher-csharp/issues/108) | Make the docs and claude files match the code | 47 | – | Done (PR #118) |
 
 ## Plan
 | Week | Dates | Goal | Works at the end of the week |
