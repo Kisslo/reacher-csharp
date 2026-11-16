@@ -1,16 +1,92 @@
+/*
+ * Design tokens for Reacher's dark theme in deep blues.
+ * Feature stylesheets use these variables instead of hex values,
+ * so a colour or radius change happens here only.
+ *
+ * Surfaces from darkest to lightest:
+ * page (behind everything) → canvas (boxes, table, dialogs) → canvas-subtle
+ * (table header, hovered row, secondary areas).
+ */
 :root {
+    --color-page: #0b1424;
+    --color-header: #08101d;
+    --color-canvas: #12203a;
+    --color-canvas-subtle: #1a2b4a;
+    --color-fg: #e6edf3;
+    --color-fg-muted: #9fb0c8;
+    --color-fg-on-emphasis: #ffffff;
+    --color-border: #2a3d5f;
+    --color-border-strong: #3d5480;
+    --color-accent: #58a6ff;
+    --color-accent-subtle: rgb(56 139 253 / 18%);
+    --color-success: #3fb950;
+    --color-success-subtle: rgb(46 160 67 / 18%);
+    --color-attention: #d29922;
+    --color-danger: #ff6b61;
+    --color-backdrop: rgb(1 4 9 / 65%);
+
+    --color-btn-bg: #1d3052;
+    --color-btn-hover-bg: #253b63;
+    --color-btn-primary-bg: #1158c7;
+    --color-btn-primary-hover-bg: #0d4aa8;
+
+    /* Selected items, such as the chosen municipalities. */
+    --color-chip-bg: #1c4a85;
+    --color-chip-border: #3b74c4;
+    --color-chip-fg: #ffffff;
+    --color-chip-hover-bg: #2a5fa3;
+
+    --page-width: 1600px;
+    --radius: 6px;
+    --radius-large: 12px;
+    --shadow-small: 0 1px 0 rgb(1 4 9 / 20%);
+    --shadow-medium: 0 8px 24px rgb(1 4 9 / 55%);
+    --focus-ring: 0 0 0 2px var(--color-canvas), 0 0 0 4px var(--color-accent);
+
+    /* Native controls (select lists, checkboxes, date pickers, scrollbars) render dark too. */
+    color-scheme: dark;
+
     font-family:
-        Inter,
-        ui-sans-serif,
-        system-ui,
-        -apple-system,
-        BlinkMacSystemFont,
-        'Segoe UI',
-        sans-serif;
-    color: #172033;
-    background: #f5f7fb;
+        -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica,
+        Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--color-fg);
+    background: var(--color-page);
     font-synthesis: none;
     text-rendering: optimizeLegibility;
+}
+
+/*
+ * Alternative: a neutral grey dark palette. To compare live, add
+ * data-palette="grey" to the <html> element in the browser's dev tools.
+ * Delete whichever palette the team doesn't choose.
+ */
+:root[data-palette='grey'] {
+    --color-page: #1c2128;
+    --color-header: #161b22;
+    --color-canvas: #22272e;
+    --color-canvas-subtle: #2d333b;
+    --color-fg: #cdd9e5;
+    --color-fg-muted: #909dab;
+    --color-border: #444c56;
+    --color-border-strong: #545d68;
+    --color-accent: #6cb6ff;
+    --color-accent-subtle: rgb(65 132 228 / 18%);
+    --color-success: #57ab5a;
+    --color-success-subtle: rgb(70 149 74 / 18%);
+    --color-attention: #c69026;
+    --color-danger: #f47067;
+
+    --color-btn-bg: #373e47;
+    --color-btn-hover-bg: #444c56;
+    --color-btn-primary-bg: #255ab2;
+    --color-btn-primary-hover-bg: #1d4a96;
+
+    --color-chip-bg: #2d4f80;
+    --color-chip-border: #4a74b0;
+    --color-chip-fg: #ffffff;
+    --color-chip-hover-bg: #3a6299;
 }
 
 * {
@@ -23,24 +99,136 @@ body {
     min-height: 100vh;
 }
 
+a {
+    color: var(--color-accent);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+h1,
+h2,
+h3 {
+    line-height: 1.25;
+    font-weight: 600;
+}
+
+h2 {
+    font-size: 1.25rem;
+}
+
+/* One focus style everywhere, only for keyboard focus. */
+:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+/* Buttons: a default style and a blue primary style for submit buttons. */
+button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    min-height: 2rem;
+    padding: 0.25rem 0.875rem;
+    font: inherit;
+    font-weight: 500;
+    line-height: 1.25;
+    color: var(--color-fg);
+    background: var(--color-btn-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-small);
+    cursor: pointer;
+    transition:
+        background-color 80ms ease,
+        border-color 80ms ease;
+}
+
+button:hover:not(:disabled) {
+    background: var(--color-btn-hover-bg);
+    border-color: var(--color-border-strong);
+}
+
+button:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+button:disabled {
+    color: var(--color-fg-muted);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+button[type='submit'] {
+    color: var(--color-fg-on-emphasis);
+    background: var(--color-btn-primary-bg);
+    border-color: transparent;
+}
+
+button[type='submit']:hover:not(:disabled) {
+    background: var(--color-btn-primary-hover-bg);
+    border-color: transparent;
+}
+
+/* Form controls. */
+input:not([type='checkbox'], [type='radio']),
+select,
+textarea {
+    min-height: 2rem;
+    padding: 0.3rem 0.75rem;
+    font: inherit;
+    color: var(--color-fg);
+    /* Inputs sit inside boxes, so they use the darker page colour to stand out. */
+    background: var(--color-page);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+}
+
+::placeholder {
+    color: var(--color-fg-muted);
+    opacity: 1;
+}
+
+input:not([type='checkbox'], [type='radio']):focus,
+select:focus,
+textarea:focus {
+    border-color: var(--color-accent);
+    outline: none;
+    box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+    accent-color: var(--color-accent);
+}
+
+progress {
+    height: 0.5rem;
+    accent-color: var(--color-accent);
+}
+
 .app-shell {
     min-height: 100vh;
 }
 
 .app-header {
-    padding: 1.25rem;
-    color: #ffffff;
-    background: #172033;
+    padding: 1rem 1.5rem;
+    background: var(--color-header);
+    border-bottom: 1px solid var(--color-border);
 }
 
 .app-header h1 {
-    max-width: 80rem;
+    max-width: var(--page-width);
     margin: 0 auto;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
 }
 
 .app-main {
-    max-width: 80rem;
+    max-width: var(--page-width);
     margin: 0 auto;
-    padding: 1.5rem 1.25rem;
+    padding: 1.5rem;
 }
