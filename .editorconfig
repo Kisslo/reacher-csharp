@@ -12,7 +12,7 @@ indent_size = 4
 indent_size = 2
 
 [*.cs]
-# Samma radlängd som ruff i Python-repot.
+# Maximum line length for C# files.
 max_line_length = 100
 csharp_style_namespace_declarations = file_scoped:warning
 dotnet_sort_system_directives_first = true

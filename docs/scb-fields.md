@@ -1,118 +1,138 @@
-# SCB:s nya API (AFR): endpoints, fält och koder
+# SCB's AFR API: endpoints, fields and codes
 
-T1-09 (#46). Underlag för SCB-adaptern (T1-06), de nya compliance-fälten (T1-10) och Team 2:s härledda signaler.
+Reference for the SCB client and ingest (`backend/src/Reacher.Ingestion/Scb/`): what SCB
+sends, and how it becomes `company` and `workplace` rows (`docs/contracts.md`).
 
-**Källor**
-- OpenAPI-kontraktet `https://apiafr.scb.se/swagger/v1/swagger.json`. SCB kallar det "det normativa kontraktet". Typer märkta *kontrakt* kommer därifrån.
-- SCB:s Variabelbeskrivning (lokal PDF, gitignorerad): vad koderna betyder.
-- Ett riktigt anrop 2026-10-07 med lokal nyckel (`scripts/scb/probe.py`). Typer och format märkta *svar* är kontrollerade där.
+**Sources**
+- The OpenAPI contract, `https://apiafr.scb.se/swagger/v1/swagger.json`. SCB calls it the normative contract. Types marked *contract* come from there.
+- SCB's Variabelbeskrivning (a local PDF, `Variabelbeskrivning_scb.pdf`, gitignored): what the codes mean.
+- Real responses read on 2026-10-07 with a local key. Types and formats marked *response* were checked there.
 
-Inga riktiga uppgifter finns i den här filen eller i `tests/fixtures/scb/`.
+This file and the test fixtures hold no real data.
 
-## Anslutning
+## Connection
 
 | | |
 |---|---|
-| Bas-URL | `https://apiafr.scb.se/v1`. Versionen ligger i sökvägen; v1 gäller tills vidare |
-| Nyckel | Header `X-API-Key`. Lokalt i `.env` som `SCB_API_KEY` (D24, T1-11). Utan nyckel: 401 "Invalid or missing API key" |
-| Fel | `application/problem+json`: `type`, `title`, `status`, `detail`, `instance`, `traceId`. Vanliga koder: 400, 401, 404, 429, 500, 503 |
-| Sidstorlek | `limit` max 5000 |
-| Anropsgräns | Inte dokumenterad. Vid överbelastning svarar API:t 429 |
-| Driftfönster | Stängt 04:00–04:30 varje natt medan data laddas |
-| Senaste uppdatering | `GET /v1/api-info` → `senasteUppdateringsDatum` |
+| Base URL | `https://apiafr.scb.se/v1` (`Scb:BaseUrl`). The version is in the path |
+| Key | Header `X-API-Key`, from `Scb:ApiKey`. Without a key: 401 "Invalid or missing API key" |
+| Errors | `application/problem+json` with `type`, `title`, `status`, `detail`, `instance`, `traceId`. Common codes: 400, 401, 404, 429, 500, 503 |
+| Page size | `limit`, max 5000 (`Scb:PageSize`) |
+| Rate limit | Not documented. SCB answers 429 when overloaded. We send at most `Scb:RequestsPerSecond` (default 2) |
+| Retries | 408, 429, 5xx, network errors and timeouts: 3 retries with exponential backoff (about 2, 4 and 8 s), following `Retry-After` up to 60 s. 401 and TLS errors are never retried |
+| Nightly load | Closed 04:00–04:30 Swedish time. The client refuses every call in that window, and the API answers `scb_unavailable` (503) |
+| Last update | `GET /v1/api-info` → `senasteUppdateringsDatum` |
 
-## Endpoints vi använder
+## Endpoints
 
-API:t har två kontrakt: **JE** (juridisk enhet = företaget, nyckel `peOrgNr`) och **AE** (arbetsställe = salongen, nyckel `cfarNr`). En salong i vår databas är ett arbetsställe.
+The API has two kinds of unit: **JE** (juridisk enhet, the company, key `peOrgNr`) and **AE** (arbetsställe, the workplace, key `cfarNr`). One `workplace` row is one AE.
 
-| Endpoint | Svar | Till |
+| Endpoint | Response | `IScbClient` | Used by |
+|---|---|---|---|
+| `GET /v1/arbetsstallen/naringsgren/{kod}?limit=&cursorId=` | `pagination` + `arbetsstallen[]`, AE *partial* | `GetWorkplacesBySni` | The ingest: every workplace with one SNI code |
+| `GET /v1/juridiskaenheter/{peOrgNr}/full` | One JE, all variables | `GetLegalUnit` | The ingest: once per company per run |
+| `GET /v1/kodtabeller/{tabell}` | A list of `kod` + `klartext` | `GetCodeTable` | `/api/codes/*` and the search check |
+| `GET /v1/arbetsstallen/naringsgren/{kod}/count` | `count`, `path` | `CountWorkplacesBySni` | Nothing yet |
+| `GET /v1/arbetsstallen/{cfarNr}/full` | One AE, all variables | `GetWorkplace` | Nothing yet. The list already has every workplace field we store |
+
+Do **not** use:
+- `/juridiskaenheter/kommun/{kod}`: filters on the company's registered municipality (`kommunSate`), for a sole trader the owner's home municipality. Our area is the workplace's municipality (D3).
+- `/arbetsstallen/kommun/{kod}`: every industry in the municipality, many times more rows than the SNI filter.
+- `/arbetsstallen/full` and `/juridiskaenheter/full`: the whole register without a filter.
+
+### No combined filter
+
+Each list endpoint filters on one thing: industry, municipality, county or employee class, and for JE also revenue class and legal form. "SNI 96210 in municipality 0180" can't be asked for. The ingest therefore:
+
+1. Lists the SNI code nationally: `/arbetsstallen/naringsgren/{kod}`.
+2. Drops every row whose `peOrgNr` isn't `16` + an orgnr, before anything else (D2).
+3. Keeps workplaces whose `belagenhetsadress.kommun` is one of the searched municipalities, whose primary SNI is the searched code, and that pass D5.
+4. Fetches `/juridiskaenheter/{peOrgNr}/full` once per company, since several workplaces can belong to one company.
+
+The industry filter matches only the **primary** industry (`rangordning = 1`, D4).
+
+Call budget (*response*, 2026-10-07): `96210` has 18,415 workplaces nationwide, so `limit=5000` gives 4 list calls, plus one JE call per company with a workplace in the searched municipalities. 3,625 of those workplaces are in Stockholm (0180).
+
+### Paging
+
+The list is sorted by `peOrgNr`, ascending (*response*). All legal persons (`16…`) therefore come before all sole traders (`19…`/`20…`), and a sample of the first pages isn't representative.
+
+Cursor, not offset:
+1. The first call has no `cursorId`.
+2. The response has `pagination` with `nextCursorId` (number), `limit` (number) and `hasMore` (bool).
+3. The next call sends `cursorId=<nextCursorId>` with the **same** `limit`. Repeat until `hasMore` is `false`.
+
+The client decides the end on `hasMore` only, never on `nextCursorId`. If `hasMore` is true but the cursor is missing, it throws.
+
+## Field mapping
+
+*Partial* = the list call, *full* = the `/full` call. The columns are in `docs/contracts.md`.
+
+### `company` (JE full, except `orgnr`)
+
+| Column | SCB field | Note |
 |---|---|---|
-| `GET /v1/arbetsstallen/naringsgren/{kod}?limit=&cursorId=` | `pagination` + `arbetsstallen[]`, AE *partial* | Alla salonger med en viss SNI-kod |
-| `GET /v1/arbetsstallen/naringsgren/{kod}/count` | `count`, `path` | Räkna innan vi hämtar |
-| `GET /v1/arbetsstallen/{cfarNr}/full` | Ett AE, alla variabler | Telefon och startdatum |
-| `GET /v1/juridiskaenheter/{peOrgNr}/full` | Ett JE, alla variabler | Juridisk form, F-skatt, moms, arbetsgivare, företagsstatus, spärrar, namn, registreringsdatum |
-| `GET /v1/kodtabeller/{tabell}` | Lista med `kod` + `klartext` | Kodlistorna nedan |
+| `orgnr` | `peOrgNr` (AE partial) | 12 digits: `16` + the orgnr. The `16` is stripped, and the rest must be 10 digits with a third digit 2–9. Anything else, such as `19`/`20` + a personnummer, is dropped (D2). JE's own `orgNr` isn't used |
+| `name` | `foretagsnamn`, else `namn` | The first that isn't blank after trim. `foretagsnamn` = registered company name, `namn` = legal name |
+| `sni` | `naringsgrenar[]` with `rangordning = 1` | Falls back to the searched code |
+| `legal_form` | `jurform` | Must be in `Ingest:AllowedLegalForms` (`49`) |
+| `company_status` | `ftgStat` | Must be `1` |
+| `employee_class` | `anstKl` (JE) | The whole company. The workplace's own `anstKl` isn't stored |
+| `revenue_class` | `omsKl` | |
+| `revenue_class_year` | `omsAr` | A number |
+| `registered_at` | `regDat` | UTC, converted to a Swedish date (see below) |
+| `ad_block_type` | `reklamSparrTyp` (JE) | Must be `1` |
 
-Använd **inte**:
-- `/juridiskaenheter/kommun/{kod}`: filtrerar på säteskommun, för en enskild firma ägarens folkbokföringskommun (D19).
-- `/arbetsstallen/kommun/{kod}`: alla branscher i kommunen, många gånger fler rader än SNI-filtret.
-- `/arbetsstallen/full` och `/juridiskaenheter/full`: hela registret utan filter.
+A company without a name, `anstKl`, `omsKl` or `omsAr` is skipped and counted, because those columns are NOT NULL. They are never filled with a guess.
 
-### Inget kombinerat filter
+### `workplace` (AE partial)
 
-Varje listendpoint filtrerar på en enda sak: näringsgren, kommun, län eller anställdaklass, och för JE även omsättningsklass och juridisk form. "SNI 96210 i kommun 0180" går inte att fråga efter. Adaptern (T1-06) gör därför:
+| Column | SCB field | Note |
+|---|---|---|
+| `cfar` | `cfarNr` | A number in JSON, stored as text |
+| `orgnr` | `peOrgNr` | As for `company` |
+| `name` | `ben` | Null if blank. *Response:* only 115 of 5,000 workplaces on the first page had text; 2,658 had `""` and 2,227 had `" "` |
+| `sni` | `primarNaringsgren.naringsgren` | `"96210"`, five digits without a dot. Must be the searched code |
+| `municipality` | `belagenhetsadress.kommun` | The workplace's municipality (D3). Never JE `kommunSate` |
+| `street` | `belagenhetsadress.bGatuAdress` | The visiting address. Never `postAdress` |
+| `postal_code` | `belagenhetsadress.bPostNr` | |
+| `city` | `belagenhetsadress.bPostOrt` | |
+| `workplace_status` | `aeStat` | Must be `1` |
+| `ad_block_type` | `reklamSparrTyp` (AE) | Must be `1`. The block exists on **both** the company and the workplace |
 
-1. En lista per SNI-kod i `sources.yaml`: `/arbetsstallen/naringsgren/{kod}`.
-2. Behåll arbetsställen där `belagenhetsadress.kommun` finns i `sources.yaml`. Filtret görs i Python.
-3. `/arbetsstallen/{cfarNr}/full` för varje behållen salong.
-4. `/juridiskaenheter/{peOrgNr}/full` en gång per unikt orgnr. Flera salonger kan höra till samma företag, så cacha per körning.
+Never mapped (data minimisation): `postAdress`, `kommunSate`, `lanSate`, `tel`, `epost`, `epostSparrTyp`, `telefonSparrTyp` (we don't call anyone, D5) and `geografiskInformation` (coordinates, for a sole trader sometimes a home). The models in `ScbModels.cs` leave them out, so the serializer ignores them.
 
-Näringsgrensfiltret matchar bara den **primära** näringsgrenen (`rangordning = 1`). En salong med frisör som näringsgren 2 kommer inte med, vilket räcker för MVP:n.
+### Text, codes and dates
 
-Anropsbudget (*svar*, 2026-10-07): `96210` har 18 415 arbetsställen i hela landet och `96220` 11 327. Med `limit=5000` blir det 4 + 3 = 7 listanrop, plus två anrop per salong i kommunen (steg 3 och 4). Bara bland juridiska personer på första sidan av `96210` låg 695 i 0180.
+- **Codes are text (D12).** SCB mixes strings and numbers, and the same field can change type between endpoints. `ScbCodeConverter` turns `1` and `"1"` into `"1"` and changes nothing else (`"01"` stays `"01"`).
+- **Blank is `""` or `" "`, not `null`.** The sample had no `null` at all. The ingest trims, and a blank value becomes null, or `""` for the NOT NULL address columns.
+- **Dates** arrive as `YYYY-MM-DDThh:mm:ss.sssZ` in UTC (*response*). A date without a time is sent as Swedish midnight, e.g. `2025-02-02T23:00:00.000Z` for 3 February (`T22:00` in summer), so the ingest converts to `Europe/Stockholm` before taking the date.
+- **`slutDat`** is missing on an AE that has none, and can be an old date on an active JE. It is never used for status: `ftgStat` and `aeStat` decide.
 
-### Paginering
+## Code fields
 
-Listan är sorterad på `peOrgNr` i stigande ordning (*svar*). Alla juridiska personer (`16…`) kommer därför före alla enskilda firmor (`19…`/`20…`). Ett urval av de första sidorna är inte representativt: det innehåller inga enskilda firmor alls.
-
-Cursor, inte offset.
-1. Första anropet utan `cursorId`.
-2. Svaret har `pagination` med `nextCursorId` (tal), `limit` (tal) och `hasMore` (bool).
-3. Nästa anrop: `cursorId=<nextCursorId>` med **samma** `limit`. Upprepa tills `hasMore` är `false`.
-
-Adaptern avgör slutet bara på `hasMore`, aldrig på `nextCursorId`.
-
-## Fältmappning
-
-*Partial* = listanropet, *full* = `/full`-anropet.
-
-| RawSalon | API-fält | Från | Kolumn | Anmärkning |
+| Field | Level | Contract (data) | Contract (code table) | Codes |
 |---|---|---|---|---|
-| `orgnr` | `peOrgNr` | AE partial | `salon.orgnr` | 12 siffror: `16` + orgnr, eller `19`/`20` + personnummer för en enskild firma. Normaliseras vid ingest (T1-04). JE:s `orgNr` (10 siffror) används inte |
-| `cfar` | `cfarNr` | AE partial | `salon.cfar` | Tal i JSON, 8 siffror |
-| `name` | `ben`, annars `foretagsnamn`, annars `namn` | AE partial, JE full | `salon.name` | Första som inte är tomt efter trim. `ben` = Benämning, salongens namn i dagligt tal. `foretagsnamn` = registrerat företagsnamn (tidigare Firma). `namn` = juridiskt namn, för en enskild firma ägarens personnamn. *Svar:* bara 115 av 5 000 arbetsställen på första sidan har text i `ben`; 2 658 har `""` och 2 227 har `" "` |
-| `sni` | `primarNaringsgren.naringsgren` | AE partial | `salon.sni` | Format (*svar*): `"96210"`, fem siffror utan punkt. Fixturerna i `salons.csv` har `96.210` |
-| `street` | `belagenhetsadress.bGatuAdress` | AE partial | `salon.street` | Besöksadressen. Aldrig `postAdress`, som också finns på AE (D19) |
-| `postal_code` | `belagenhetsadress.bPostNr` | AE partial | `salon.postal_code` | |
-| `city` | `belagenhetsadress.bPostOrt` | AE partial | `salon.city` | Ort i Excel (D27) |
-| `municipality` | `belagenhetsadress.kommun` | AE partial | `salon.municipality` | Arbetsställets kommun. Aldrig JE:s `kommunSate` (D19) |
-| `employee_class` | `anstKl` | AE partial | `salon.employee_class` | Arbetsställets storlek. JE har ett eget `anstKl` för hela företaget |
-| `registered_at` | `regDat` | JE full | `salon.registered_at` | När SCB registrerade företaget. Se öppna frågor om `startDat` och "Datum" nedan |
-| `phone` | `tel` på AE full, annars `tel` på JE full | AE full, JE full | `contact` (`kind='phone'`) | Arbetsställets nummer först (som T1-08). *Svar:* tomt (`""`) på båda nivåerna i hela stickprovet, så formatet är okänt. Se "Flaggat". E.164 vid ingest |
-| `website` | finns inte | | | Se "Flaggat" |
-| `legal_form` | `jurform` | JE full | `salon.legal_form` | |
-| `ftax_status` | `fSkattStat` | JE full | `salon.ftax_status` | |
-| `vat_status` | `momsStat` | JE full | `salon.vat_status` | |
-| `employer_status` | `arbGivStat` | JE full | `salon.employer_status` | |
-| `ad_status` | finns inte | | `salon.ad_status` | Borttagen i T1-10 (D32) |
-| `workplace_ad_status` | finns inte | | `salon.workplace_ad_status` | Borttagen i T1-10 (D32) |
-| *ny i T1-10* | `ftgStat` | JE full | `company_status` | D31 |
-| *ny i T1-10* | `aeStat` | AE partial | `workplace_status` | D33. Sträng i partial, tal i full: `str()` |
-| *ny i T1-10* | `reklamSparrTyp` | JE full | `ad_block_type` | D28 |
-| *ny i T1-10* | `telefonSparrTyp` | JE full | `phone_block_type` | D28 |
-| *ny i T1-10* | `reklamSparrTyp` | AE partial | `workplace_ad_block_type` | D28. Spärrarna finns på **både** företag och arbetsställe |
-| *ny i T1-10* | `telefonSparrTyp` | AE partial | `workplace_phone_block_type` | D28 |
+| `jurform` | JE | string | string | 2 digits. `10` natural person (sole trader), `31` HB/KB, `49` other AB, `91` undivided estate, `99` not investigated. Full list: `kodtabeller/jurformkoder` |
+| `ftgStat` | JE | string | string | `0` never active, `1` active, `9` no longer active |
+| `aeStat` | AE | string (partial), number (full) | number | `0` never active, `1` active, `9` no longer active |
+| `reklamSparrTyp` | JE, AE | number | number | `1` accepts advertising, `2` has opted out (*response*, code table) |
+| `anstKl` | JE, AE | string (JE, AE partial), number (AE full) | number | See "Employee classes" |
+| `omsKl` | JE | string | number | See "Revenue classes" |
+| `bolStat` | JE | string | number | See "Bolagsverket status". Not used |
+| `naringsgren` | AE, JE | string | string | A five-digit SNI 2025 code, e.g. `96210` hairdressers and barbers |
 
-Hämtas men lagras inte: `epost` och `epostSparrTyp` (dataminimering, Format 1), `postAdress`, `kommunSate`, `lanSate`, `geografiskInformation` (koordinater, för en enskild firma ibland en bostad), `agKat`, `sektor`, `privPubl`, `expImp`, `hjVerksJE`, `aeTyp`, `slutDat`.
+### Employee classes (`anstKl`)
 
-## Kodfält: JSON-typ och koder
+`anstklkoder` (*response*): `0` unknown, `1` 0 employees, `2` 1–4, `3` 5–9, `4` 10–19, `5` 20–49, and so on up to `16` (10,000 or more). This is not the SME scale.
 
-API:t blandar strängar och tal, och samma fält kan ha olika typ i olika endpoints: `anstKl` och `aeStat` är strängar i AE partial men tal i AE full, och kodtabellerna har ofta tal där datan har strängar. Adaptern konverterar därför varje kod med `str()` och inget annat (D18), så att `1` och `"1"` båda blir `"1"`.
+### Revenue classes (`omsKl`)
 
-| Fält | Nivå | Kontrakt (data) | Kontrakt (kodtabell) | Svar | Koder |
-|---|---|---|---|---|---|
-| `jurform` | JE | string | string | som kontraktet | 2 siffror. `10` fysisk person (enskild firma), `31` HB/KB, `49` övriga AB, `91` oskiftat dödsbo, `99` ej utredd. Hela listan: Variabelbeskrivningen eller `kodtabeller/jurformkoder` |
-| `fSkattStat` | JE | string | number | som kontraktet | `0` aldrig, `1` registrerad, `9` avregistrerad |
-| `momsStat` | JE | string | number | som kontraktet | `0` aldrig, `1` registrerad, `3` via representant, `9` avregistrerad |
-| `arbGivStat` | JE | string | number | som kontraktet | `0` aldrig, `1` vanlig, `2` privatarbetsgivare, `3` via representant, `4` ambassad/konsulat, `9` avregistrerad |
-| `ftgStat` | JE | string | string | som kontraktet | `0` aldrig verksam, `1` verksam, `9` ej längre verksam |
-| `reklamSparrTyp` | JE, AE | number | number | som kontraktet | `1` tar emot reklam, `2` har frånsagt sig reklam (*svar*, kodtabellen) |
-| `telefonSparrTyp` | JE, AE | number | number | som kontraktet | `1` ej telefonnummerspärrat, `2` telefonnummerspärr telemarketing, `3` NIX-Telefon (*svar*, kodtabellen) |
-| `aeStat` | AE | string (partial), number (full) | number | som kontraktet | `0` aldrig verksam, `1` verksam, `9` ej längre verksam |
-| `anstKl` | JE, AE | string (JE, AE partial), number (AE full) | number | som kontraktet | Se nästa avsnitt |
-| `omsKl` | JE | string | number | som kontraktet | Se "Omsättning" |
-| `bolStat` | JE | string | number | som kontraktet | Se "Status hos Bolagsverket" |
-| `naringsgren` | AE, JE | string | string | som kontraktet | `96210` frisörer och barberare, `96220` skönhetsvård och andra skönhetsbehandlingar (SNI 2025, avdelning `T`) |
+JE full has `omsKl` and `omsAr` (the year, a number). SCB computes it from VAT returns. Classes: `0` < 1 tkr, `1` 1–499 tkr, `2` 500–999 tkr, `3` 1,000–4,999 tkr, `4` 5,000–9,999 tkr, `5` 10,000–19,999 tkr, `6` 20,000–49,999 tkr, `7` 50,000–99,999 tkr, `8` 100,000–499,999 tkr, `9` 500,000–999,999 tkr, `10` 1,000,000–4,999,999 tkr, `11` 5,000,000–9,999,999 tkr, `12` > 9,999,999 tkr. There is also a filter, `/juridiskaenheter/omsattningsklass/{kod}`, which we don't use.
+
+### Bolagsverket status (`bolStat`)
+
+JE full has `bolStat`: `0` normal, `11`–`13` composition, `20`–`24` bankruptcy, `31`–`35` liquidation, `36`–`78` deregistered, merger, conversion and more, `80`–`82` company reconstruction, `85`–`87` resolution, `90`–`99` division and takeover. Full list: `kodtabeller/bolstatkoder`. Units not registered with Bolagsverket always have `0`. Not used: see "Open questions" in `claude.md`.
 
 ## Code tables for `/api/codes` (T1-08)
 
@@ -121,8 +141,8 @@ SCB has a table for all four lists, so no static SNI file is needed. Table names
 | Our endpoint | SCB table | `kod` in the contract | Order |
 |---|---|---|---|
 | `/api/codes/municipalities` | `kommunkoder` | string | By name, Swedish order |
-| `/api/codes/employee-classes` | `anstklkoder` | number | By code |
-| `/api/codes/revenue-classes` | `omsklkoder` | number | By code |
+| `/api/codes/employee-classes` | `anstklkoder` | number | By number (`10` after `2`) |
+| `/api/codes/revenue-classes` | `omsklkoder` | number | By number |
 | `/api/codes/sni` | `naringsgrenkoder` | string | 5-digit codes, by code |
 | `/api/codes/sni/{code}` | `naringsgrenkoder` | string | Lookup by code |
 
@@ -130,67 +150,17 @@ SCB has a table for all four lists, so no static SNI file is needed. Table names
 
 `kommunkoder` has 292 rows (measured 2026-10-30): the 290 municipalities plus `0000` (Kommunkod saknas) and `9999` (Ej svensk hemortskommun). Only codes in counties 01–25 are kept, so those two are neither listed nor accepted in a search.
 
-## Svar till Team 2: vilken skala är `anstKl`?
+## Recorded responses
 
-**Storleksklass Anställda** (*svar*, `kodtabeller/anstklkoder`): `0` uppgift saknas, `1` 0 anställda, `2` 1–4, `3` 5–9, `4` 10–19, `5` 20–49 och uppåt till `16` (10 000 eller fler). Inte SME-skalan. `small_employer_classes: ["2"]` i `scoring.yaml` stämmer, ingen ändring.
+In `backend/tests/Reacher.Ingestion.Tests/Scb/Fixtures/`, read by `ScbClientTests`. The shape is copied from real responses (2026-10-07). The values are made up.
 
-## Omsättning
-
-**Ja.** JE full har `omsKl` (Storleksklass Omsättning) och `omsAr` (vilket år, tal). Den räknas fram ur momsredovisningen och finns därför även för enskilda firmor som är momsregistrerade. Klasser: `0` < 1 tkr, `1` 1–499 tkr, `2` 500–999 tkr, `3` 1 000–4 999 tkr, `4` 5 000–9 999 tkr, `5` 10 000–19 999 tkr, `6` 20 000–49 999 tkr, `7` 50 000–99 999 tkr, `8` 100 000–499 999 tkr, `9` 500 000–999 999 tkr, `10` 1 000 000–4 999 999 tkr, `11` 5 000 000–9 999 999 tkr, `12` > 9 999 999 tkr.
-
-Det finns också ett filter, `/juridiskaenheter/omsattningsklass/{kod}`. Variabelbeskrivningens finare skala (Storleksklass Fin) finns inte i API:t. Om `omsKl` ska användas för `low_revenue`, eller som filter före Bolagsverket, är Team 2:s beslut (öppen fråga i `claude.md`).
-
-## Status hos Bolagsverket
-
-**Ja.** JE full har `bolStat`: `0` normalläge, `11`–`13` ackord, `20`–`24` konkurs, `31`–`35` likvidation, `36`–`78` avförd, fusion, ombildning m.m., `80`–`82` företagsrekonstruktion, `85`–`87` resolution, `90`–`99` delning och övertagande. Hela listan: Variabelbeskrivningen eller `kodtabeller/bolstatkoder`. Enheter som inte registreras hos Bolagsverket, bland annat alla enskilda firmor, har alltid `0`. Används inte i dag, se öppna frågor.
-
-**Företagsstatus** (`ftgStat`) är bekräftad på JE, i både partial och full. Arbetsstället har en egen status, `aeStat`.
-
-## Flaggat: fält vi använder i dag som saknas i nya API:t
-
-1. **Webbadress.** Varken kontraktet eller Variabelbeskrivningen har något webbfält, men D9 säger att API:t har det. Från SCB blir `website` alltid `None`, och då skapar ingest ingen `contact`-rad. Ingen kodändring behövs.
-2. **Den tvåsiffriga Reklam-koden** (`ad_status`, `workplace_ad_status`, koderna 11–23 i D20) finns inte. Den är ersatt av `reklamSparrTyp` + `telefonSparrTyp` på båda nivåerna (D28). Dagens vy kräver `ad_status IN ('11')`, så en SCB-salong utan de gamla kolumnerna utesluts alltid. T1-10 måste landa före eller tillsammans med T1-06, och bestämmer vad som händer med de gamla kolumnerna. **Löst i T1-10:** kolumnerna är borttagna (migration 006, D32).
-3. **`area`** är redan borttagen (D19). Inget att göra.
-4. **Telefonnummer kan saknas helt.** I stickprovet (två företag och deras salonger) var `tel` tomt på både AE och JE. Gäller det de flesta salonger har vi inget nummer att ringa, och D9 (telefon från SCB) håller inte. T1-06 mäter andelen med telefon före J-04.
-
-## Öppna frågor från T1-09 (inte beslutade)
-
-- **Arbetsställets status (`aeStat`).** D31 tittar bara på företaget, så en nedlagd salong (`aeStat` `9`) hos ett verksamt företag släpps igenom. **Beslutat i T1-10 (D33):** lagras rått som `workplace_status`, och `callable_salon` kräver `'1'`.
-- **Konkurs och likvidation (`bolStat`).** Förslag: ingen regel i MVP:n, eftersom `ftgStat` redan fångar företag som inte längre är verksamma. Ta upp igen efter första riktiga listan.
-- **`registered_at`:** `regDat` (företaget registrerades) eller AE `startDat` (salongen blev verksam)? Redan en öppen fråga för Team 2. Mappningen ovan behåller dagens betydelse.
-- **Ägarens namn i Excel.** För en enskild firma utan `ben` och `foretagsnamn` blir `name` ägarens personnamn. *Svar:* 4 885 av 5 000 arbetsställen på första sidan saknar `ben` (tomt eller ett mellanslag). Den enskilda firman i stickprovet hade inget `foretagsnamn`, så den skulle visas med ägarens namn.
-
-## Att tänka på i T1-06
-
-- **`str()`, men inte på `None`.** `str(None)` är `"None"`. Vyn utesluter det (fail closed), men det bryter regeln att NULL betyder "källan sa ingenting". Skriv `None if v is None else str(v)`.
-- **Tomt är `""`, inte `null`.** Stickprovet har inga `null` alls. Saknade värden kommer som `""` eller `" "` (`ben`, `tel`, `epost`, `coAdress`, `foretagsnamn`). Trimma och gör om tomma strängar till `None` i adaptern, så att NULL fortsätter betyda "källan sa ingenting" (D18). Annars väljer namnkedjan `" "`, och ingest avvisar salongen för att den saknar namn.
-- **Datum** kommer som `ÅÅÅÅ-MM-DDTtt:mm:ss.sssZ` i UTC (*svar*). Ett datum utan klockslag skickas som svensk midnatt, t.ex. `2025-02-02T23:00:00.000Z` för 3 februari (`T22:00` sommartid). Andra är riktiga tidpunkter (`T17:02:00.000Z`). Datumdelen av strängen är alltså ofta en dag för tidig: konvertera till `Europe/Stockholm` och ta datumet. På Windows kräver `zoneinfo` paketet `tzdata`, ett nytt beroende som beslutas i T1-06.
-- **`slutDat`** saknas helt på AE när det inte finns. På JE kan det vara ett gammalt datum för ett verksamt företag. Använd det aldrig för att avgöra status: det gör `ftgStat` och `aeStat`.
-- **`cfarNr` är ett tal.** `str()` innan det blir `cfar`, eftersom dedupe-nyckeln är text.
-- **Logga aldrig** `peOrgNr`, namn, adress eller telefon. För en enskild firma är `peOrgNr` ett personnummer. Logga antal.
-- **Fel:** 429, 500 och 503 ger backoff och nytt försök (tenacity). 401 avbryter direkt, för då är nyckeln fel. Kör inte 04:00–04:30.
-- **Samma `limit`** genom hela pagineringen.
-
-## Beslutat i T1-06 (D37)
-
-- HTTP via stdlib `urllib` med samma omförsök som Bolagsverket-adaptern (D36), inte httpx/tenacity.
-- `tzdata` är ett nytt beroende: utan det hittar `zoneinfo` inte `Europe/Stockholm` på Windows.
-- 4 anrop i sekunden är ett antagande (gränsen är inte dokumenterad). 429 ger backoff.
-- Kommandot vägrar starta 04:00–04:30.
-- **Telefontäckning (mätt 2026-10-12):** 334 av 3 625 salonger i 0180 (9 %) har telefonnummer i SCB. 3 324 är ringbara, varav 304 med telefon. D9 håller inte: se öppna frågor i claude.md.
-
-## Inspelade svar (`tests/fixtures/scb/`)
-
-Formen är kopierad från riktiga svar (2026-10-07), värdena är påhittade. Formen kontrollerades med `scripts/scb/probe.py` och `scripts/scb/compare.py`. `tests/test_scb_fixtures.py` låser formen och kontrollerar att inget ser riktigt ut.
-
-| Fil | Anrop | Innehåll |
+| File | Call | Content |
 |---|---|---|
-| `ae_naringsgren_96210.json` | `/arbetsstallen/naringsgren/96210?limit=3` | Första sidan (`hasMore: true`). Två arbetsställen hos samma AB, ett i 0180 och ett i Solna (0184) som adaptern ska filtrera bort, plus en enskild firma vars `ben` är ett mellanslag |
-| `ae_full.json` | `/arbetsstallen/90000003/full` | Den enskilda firmans salong. Inget telefonnummer, inget `slutDat`, startdatum som svensk midnatt |
-| `je_full.json` | `/juridiskaenheter/198013012342/full` | Den enskilda firman, utan `foretagsnamn`. Hemadressen och säteskommunen (Nacka, 0182) skiljer sig från salongen (D19) |
+| `ae_naringsgren_96210.json` | `/arbetsstallen/naringsgren/96210?limit=2` | A first page (`hasMore: true`): two workplaces of the same made-up AB, one in Stockholm (0180) and one in Solna (0184) whose `ben` is one space |
+| `ae_full.json` | `/arbetsstallen/90000001/full` | The Stockholm workplace |
+| `je_full.json` | `/juridiskaenheter/165599001236/full` | The made-up AB |
 
-Anonymisering:
-- Orgnr är Luhn-giltiga men påhittade. Personnumret har månad 13, så det kan aldrig tillhöra någon.
-- Telefonnummer från PTS:s serier för fiktion (samma som `salons.csv`). E-post är tom, som i riktiga svaren.
-- Namn, gator och koordinater är påhittade. Postnummer, kommun- och länskoder och kodvärden får vara riktiga: de pekar inte ut någon.
-- Formen är exakt som i det riktiga svaret: fältnamn, ordning, tomma strängar i stället för `null`, saknade fält, JSON-typer och datumformat. Telefonformatet är okänt eftersom stickprovet saknade nummer.
+Rules for fixtures:
+- Orgnr are made up, and there is never a `19`/`20` row (hard rule 1).
+- Names, streets and coordinates are made up. Postal codes, municipality and county codes and code values may be real, because they don't point anyone out.
+- The shape is exactly as in the real response: field names, order, empty strings instead of `null`, missing fields, JSON types and date formats.

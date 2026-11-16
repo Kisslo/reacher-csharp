@@ -21,6 +21,24 @@ in [docs/contracts.md](docs/contracts.md).
 - Node.js 24 or newer and npm
 - Docker Desktop, running
 
+## Keys you need first
+
+The API checks its settings when it starts and stops if a required one is missing, so get
+these keys before you run anything. This applies to the fake modes too.
+
+| Setting | Needed | Why |
+|---|---|---|
+| `Scb:ApiKey` | Always | The SNI dropdown, the municipality list and the search check call the real SCB, also with the fake ingest. A real search reads companies from SCB. |
+| `Bolagsverket:ClientId`, `Bolagsverket:ClientSecret` | Always | Annual reports in a real search. Checked at startup even with the fake ingest. |
+| `PageSpeed:ApiKey` | Always | Website analysis. There is no fake. |
+| `Brave:ApiKey` | Only with `Brave:UseFake=false` | Website candidates. The fake is on by default in Development and Docker Compose. |
+
+Locally the keys go in user-secrets, and in Docker Compose in `.env` (see
+[Configuration and secrets](#configuration-and-secrets)). A missing key stops the API with
+a message naming the setting, never its value. If you only run the fakes and don't have the
+Bolagsverket or PageSpeed keys yet, any non-blank placeholder lets the API start, but a real
+search or an analysis then fails.
+
 ## Development setup
 
 Development runs the API and frontend on the host.
@@ -63,12 +81,17 @@ from the host are not available inside Docker containers.
 
 ```powershell
 Copy-Item .env.example .env
-# Add the real keys to .env before starting. Keep this file local.
+# Fill in the keys from "Keys you need first" before starting. Keep this file local.
 docker compose up -d --build
 ```
 
 Open http://localhost:8080. Nginx serves the frontend and proxies `/api` and
 `/health` to the API. The API applies database migrations before it starts.
+
+If `.env` still has the empty values from `.env.example`, the API container stops right
+after it starts and the page can't load any data. `docker compose ps` shows it as exited,
+and `docker compose logs api` names the missing setting. Fill in `.env` and run
+`docker compose up -d` again.
 
 The default Compose settings use the fake ingest coordinator and fake Brave
 client. For a real-data run, set these values in `.env`:
@@ -78,8 +101,8 @@ Ingest__UseFakeCoordinator=false
 Brave__UseFake=false
 ```
 
-Real ingest also requires the SCB and Bolagsverket credentials. Website
-analysis requires the PageSpeed key.
+`Brave__UseFake=false` also needs `Brave__ApiKey`. The other four keys are required in
+every mode (see "Keys you need first").
 
 Stop the deployment with `docker compose down`. Add `-v` only when you also
 want to delete the Postgres data volume.
@@ -307,6 +330,6 @@ git commit --no-edit
 ## Repo layout
 ```
 backend/   .NET solution (Reacher.slnx): Api, Data, Ingestion, WebsiteAnalysis + tests
-frontend/  React app (J-05)
-docs/      decisions, contracts, SCB field reference
+frontend/  React app (Vite + TypeScript)
+docs/      decisions, contracts, SCB field reference, demo runbook, matching evaluation
 ```

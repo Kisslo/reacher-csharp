@@ -14,7 +14,26 @@
 
 ## API contract
 
-All errors are `application/problem+json` with an extra `code` field (e.g. `sni_not_found`, `invalid_url`, `brave_quota_exceeded`, `analysis_timeout`, `unauthenticated`, `internal_error`). The frontend maps `code` to Swedish text. An unexpected error is HTTP 500 with `code` `internal_error` and a fixed title; the response never includes the exception message. When the access gate is enabled (D17), every path except `/health` returns 401 `unauthenticated` without the shared password, and the browser shows its own password prompt.
+All errors are `application/problem+json` with an extra `code` field. The frontend maps `code` to Swedish text in `frontend/src/texts/errors.ts`. An unexpected error is HTTP 500 with `code` `internal_error` and a fixed title; the response never includes the exception message. When the access gate is enabled (D17), every path except `/health` returns 401 `unauthenticated` without the shared password, and the browser shows its own password prompt.
+
+| `code` | Status | Returned by |
+|---|---|---|
+| `invalid_sni` | 400 | `GET /api/codes/sni/{code}` when the code isn't 5 digits |
+| `sni_not_found` | 404 | `GET /api/codes/sni/{code}` |
+| `scb_unavailable` | 502, or 503 during SCB's nightly load (04:00–04:30) | `/api/codes/*`, `POST /api/searches` |
+| `invalid_search` | 400 | `POST /api/searches`: invalid body, or an unknown SNI code or municipality |
+| `invalid_search_query` | 400 | `GET /api/companies` |
+| `job_not_found` | 404 | `GET /api/jobs/{jobId}`, `POST /api/jobs/{jobId}/cancel` |
+| `job_not_cancellable` | 409 | `POST /api/jobs/{jobId}/cancel` |
+| `company_not_found` | 404 | `PUT /api/companies/{orgnr}/outreach`, `POST /api/companies/{orgnr}/website-candidates` |
+| `note_rejected` | 400 | `PUT /api/companies/{orgnr}/outreach` |
+| `brave_quota_exceeded` | 429 | `POST /api/companies/{orgnr}/website-candidates` |
+| `brave_unavailable` | 502 | `POST /api/companies/{orgnr}/website-candidates` |
+| `invalid_url` | 400 | `POST /api/website-analysis` |
+| `analysis_fetch_failed` | 502 | `POST /api/website-analysis` |
+| `analysis_timeout` | 504 | `POST /api/website-analysis` |
+| `unauthenticated` | 401 | Every path except `/health`, when the access gate is enabled |
+| `internal_error` | 500 | Any endpoint, for an unexpected error |
 
 ### Health and codes
 

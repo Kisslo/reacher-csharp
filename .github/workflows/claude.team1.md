@@ -6,7 +6,6 @@ Loaded together with the shared `claude.md`. That file holds the hard rules, dec
 Turn SCB and Bolagsverket data into clean, eligible `company`, `workplace` and `financial_fact` rows for whatever SNI code and municipalities a user asks for, and in week 47 build the search form and company table on top of them.
 
 ## What we own
-Folder paths are a suggestion until J-02 lands. Update the table if they change.
 
 | Area | Where | Ticket |
 |---|---|---|
@@ -71,13 +70,15 @@ Real annual reports are messier than the fixture. These rules all come from bugs
 | T1-12 | [#77](https://github.com/Kisslo/reacher-csharp/issues/77) | [BE] Save companies while the search is still running | 47 | – | Done (PR #84) |
 | T1-13 | [#78](https://github.com/Kisslo/reacher-csharp/issues/78) | [FE] Cancel button on the search progress | 47 | J-17 | Done (PR #89) |
 | T1-14 | [#79](https://github.com/Kisslo/reacher-csharp/issues/79) | [FE] Update the company table while a search is running | 47 | T1-12 | Done (PR #90) |
-| T1-15 | [#91](https://github.com/Kisslo/reacher-csharp/issues/91) | [FE] Clear the municipality search text after a pick and on Escape | 47 | – | Todo |
+| T1-15 | [#91](https://github.com/Kisslo/reacher-csharp/issues/91) | [FE] Clear the municipality search text after a pick and on Escape | 47 | – | Done (PR #98) |
 | T1-16 | [#93](https://github.com/Kisslo/reacher-csharp/issues/93) | [FE] SNI dropdown in the search form | 47 | J-20 | Done (PR #99) |
 | T1-17 | [#101](https://github.com/Kisslo/reacher-csharp/issues/101) | [BE] Delete ineligible workplaces during the ingest, not only at the end | 47 | – | Done (PR #111) |
 
 Week 45 is the heaviest. If something slips, T1-08 can wait (only T1-09 in week 47 needs it).
 
 ## Team status
+*2026-11-16:* All Team 1 tickets T1-01–T1-17 are complete; T1-15 (PR #98), T1-16 (PR #99) and T1-17 (PR #111) were the last. `docs/scb-fields.md` is rewritten in English to match the C# ingest (J-28). Next: J-06, including the clean-clone README test.
+
 *2026-11-09:* All Team 1 tickets T1-01–T1-11 are complete. J-15 is merged (PR #74), so outreach state stays in `company_outreach` across ingest. J-16's row controls are done.
 
 ## Team 1 open questions

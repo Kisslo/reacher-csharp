@@ -24,10 +24,10 @@ Variabelbeskrivning_scb.pdf
 
 /output/
 
-# Råa svar från SCB:s API (personuppgifter, T1-09)
+# Raw SCB API responses (may contain personal data). Never commit them.
 /scb_raw/
 
 /API_context.md
 
-# Råa svar från Bolagsverkets API (T1-14)
+# Raw Bolagsverket API responses. Never commit them.
 /bolagsverket_raw/

@@ -19,7 +19,7 @@ areas the day before the demo so the data is already available and fresh.
 Before the demo:
 
 - Start Docker Desktop.
-- Confirm that the API keys are available locally through `.env`.
+- Confirm that `.env` has all five keys (see "Keys you need first" in the README).
 - Set the real integrations in `.env`:
 
   ```env
@@ -59,6 +59,16 @@ Before the demo:
 
 If an external API is unavailable, use the fictional seed data and fake
 integrations. Do not call Brave repeatedly to compensate for a failed demo.
+
+The fallback still needs keys. The API refuses to start without `Scb__ApiKey`,
+`Bolagsverket__ClientId`, `Bolagsverket__ClientSecret` and `PageSpeed__ApiKey`, also with
+the fakes on. Only `Brave__ApiKey` may stay empty. A `.env` copied from `.env.example`
+without filling these in makes the API stop at startup.
+
+The fakes don't cover everything. The SNI dropdown, the municipality list and the search
+check still call the real SCB. The lists are cached in memory for 24 hours, so an API that
+has loaded them since its last restart keeps working if SCB goes down. "Analysera" still
+calls the real PageSpeed.
 
 ```powershell
 docker compose exec postgres psql -U reacher -d reacher `
