@@ -9,11 +9,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Reacher.Api.Websites;
 using Reacher.Data;
 using Reacher.Data.Entities;
 using Reacher.WebsiteAnalysis.Analysis;
 using Reacher.WebsiteAnalysis.Brave;
+using Reacher.WebsiteAnalysis.Matching;
+using Reacher.WebsiteAnalysis.Options;
 
 namespace Reacher.Api.Tests;
 
@@ -46,6 +49,18 @@ public sealed class WebsiteEndpointTests(CompanySearchFixture postgres)
     public async Task Candidates_returns_the_fake_result_without_storing_it()
     {
         await using var host = CreateHost();
+        string expectedTitle;
+        await using (var scope = host.Factory.Services.CreateAsyncScope())
+        {
+            var blocked = scope.ServiceProvider
+                .GetRequiredService<IOptions<MatchingOptions>>()
+                .Value
+                .BlockedDomains;
+            // FakeBraveSearchClient puts the query in the title. Alpha AB's lowest
+            // cfar workplace is in Teststad.
+            expectedTitle = WebsiteQuery.Build("Alpha AB", "Teststad", blocked);
+        }
+
         using var client = host.CreateClient();
 
         var response = await client.PostAsync(
@@ -60,7 +75,7 @@ public sealed class WebsiteEndpointTests(CompanySearchFixture postgres)
         Assert.Equal(1500, body["remainingMonthlyQuota"]!.GetValue<int>());
         var candidate = Assert.Single(body["candidates"]!.AsArray());
         Assert.Equal("https://example.test/company", candidate!["url"]!.GetValue<string>());
-        Assert.Equal("\"Alpha\" Teststad website", candidate["title"]!.GetValue<string>());
+        Assert.Equal(expectedTitle, candidate["title"]!.GetValue<string>());
         Assert.Equal("low", candidate["confidence"]!.GetValue<string>());
         Assert.False(candidate["preselected"]!.GetValue<bool>());
     }
