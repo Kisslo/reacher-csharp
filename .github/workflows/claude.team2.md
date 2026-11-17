@@ -77,6 +77,7 @@ Serve the company list the way the user wants to see it, and for one company at 
 | T2-12 | [#80](https://github.com/Kisslo/reacher-csharp/issues/80) | [FE] Mark analysed companies and keep them at the top | 47 | – | Done (PR #88) |
 | T2-13 | [#100](https://github.com/Kisslo/reacher-csharp/issues/100) | [BE] Block the remaining unsafe address ranges in the URL check | 47 | – | Done (PR #110) |
 | T2-14 | [#104](https://github.com/Kisslo/reacher-csharp/issues/104) | [BE] Only offer http/https website candidates and fix the fake's no-website case | 47 | – | Done (PR #109) |
+| T2-15 | [#120](https://github.com/Kisslo/reacher-csharp/issues/120) | [BE] Exclude blocked domains in the Brave query | 47 | – | In progress |
 
 T2-05 doesn't depend on Brave, so it can start as soon as J-03 is merged, in parallel with T2-03.
 

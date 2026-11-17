@@ -29,6 +29,7 @@ public sealed partial class WebsiteCandidateService(
     IBraveSearchClient brave,
     WebsiteMatcher matcher,
     IOptions<BraveOptions> braveOptions,
+    IOptions<MatchingOptions> matchingOptions,
     TimeProvider time) : IWebsiteCandidateService
 {
     public async Task<WebsiteCandidatesResponse?> FindAsync(
@@ -62,7 +63,10 @@ public sealed partial class WebsiteCandidateService(
 
         // Assumption: one city, from the workplace with the lowest cfar, so the
         // query stays stable when a company has several workplaces.
-        var query = WebsiteQuery.Build(company.Name, company.City);
+        var query = WebsiteQuery.Build(
+            company.Name,
+            company.City,
+            matchingOptions.Value.BlockedDomains);
         var results = await brave.SearchAsync(query, cancellationToken);
         var matched = matcher.Match(company.Name, results);
 
