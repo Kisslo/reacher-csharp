@@ -10,22 +10,50 @@ public sealed class WebsiteMatcherTests
     [InlineData(
         "Kvarnbyns Rörteknik AB",
         "Malmö",
-        "\"Kvarnbyns Rörteknik\" Malmö website")]
-    [InlineData("Example Aktiebolag (publ)", "Stockholm", "\"Example\" Stockholm website")]
-    [InlineData("Exempel AKTIEBOLAG (PUBL)", null, "\"Exempel\"")]
-    [InlineData("Bygg & Måleri AB", null, "\"Bygg & Måleri\"")]
+        "\"Kvarnbyns Rörteknik\" Malmö website loc:se")]
+    [InlineData(
+        "Example Aktiebolag (publ)",
+        "Stockholm",
+        "\"Example\" Stockholm website loc:se")]
+    [InlineData("Exempel AKTIEBOLAG (PUBL)", null, "\"Exempel\" loc:se")]
+    [InlineData("Bygg & Måleri AB", null, "\"Bygg & Måleri\" loc:se")]
     [InlineData(
         "Bygg   &   Måleri AB",
         "  Göteborg  ",
-        "\"Bygg & Måleri\" Göteborg website")]
-    [InlineData("ABBA AB", null, "\"ABBA\"")]
-    [InlineData("Aktiebolaget Exempel AB", null, "\"Aktiebolaget Exempel\"")]
+        "\"Bygg & Måleri\" Göteborg website loc:se")]
+    [InlineData("ABBA AB", null, "\"ABBA\" loc:se")]
+    [InlineData("Aktiebolaget Exempel AB", null, "\"Aktiebolaget Exempel\" loc:se")]
     public void Build_strips_the_legal_form_and_quotes_the_name(
         string name,
         string? city,
         string expected)
     {
         Assert.Equal(expected, WebsiteQuery.Build(name, city));
+    }
+
+    [Fact]
+    public void Build_appends_site_exclusions_for_blocked_domains()
+    {
+        var query = WebsiteQuery.Build(
+            "Special Touch Stockholm AB",
+            "Stockholm",
+            ["eniro.se", "  Hitta.se  ", "", "  ", "facebook.com."]);
+
+        Assert.Equal(
+            "\"Special Touch Stockholm\" Stockholm website loc:se"
+            + " -site:eniro.se -site:hitta.se -site:facebook.com",
+            query);
+    }
+
+    [Fact]
+    public void Build_appends_loc_and_site_exclusions_when_the_city_is_blank()
+    {
+        var query = WebsiteQuery.Build(
+            "Example AB",
+            city: null,
+            blockedDomains: ["eniro.se"]);
+
+        Assert.Equal("\"Example\" loc:se -site:eniro.se", query);
     }
 
     [Theory]

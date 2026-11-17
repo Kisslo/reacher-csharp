@@ -9,8 +9,8 @@ public interface IBraveSearchClient
 {
     /// <summary>
     /// Runs one search. <paramref name="query"/> is sent unchanged as <c>q</c>.
-    /// Build it with <see cref="WebsiteQuery.Build(string, string?)"/>; this method does not
-    /// strip the legal form or add the city.
+    /// Build it with <see cref="WebsiteQuery.Build"/>; this method does not strip the
+    /// legal form, add the city, or append operators.
     /// </summary>
     Task<IReadOnlyList<BraveSearchResult>> SearchAsync(
         string query,

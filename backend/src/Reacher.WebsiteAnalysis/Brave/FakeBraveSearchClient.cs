@@ -28,7 +28,8 @@ public sealed class FakeBraveSearchClient : IBraveSearchClient
         cancellationToken.ThrowIfCancellationRequested();
 
         // WebsiteQuery.Build quotes the name and may append " {city} website",
-        // so the query the service sends is never the bare company name.
+        // then always adds loc:se and optional -site: exclusions, so the query
+        // the service sends is never the bare company name.
         if (NamesNoWebsiteCompany(query))
         {
             return Task.FromResult<IReadOnlyList<BraveSearchResult>>([]);
